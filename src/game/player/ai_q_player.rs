@@ -12,11 +12,11 @@ use super::Player;
 use super::super::field::Field;
 
 const GAMMA:f64 = 0.99; //q gamma (action-reward time difference high) //1.0?
-const LR:f64 = 0.1; //neural net learning rate
-const MOM:f64 = 0.05; //neural net momentum
+const LR:f64 = 0.2; //neural net learning rate
+const MOM:f64 = 0.1; //neural net momentum
 const EPOCHS_PER_STEP:u32 = 1; //epochs to learn from each turn
 const RND_PICK_START:f64 = 0.5; //exploration factor start
-const RND_PICK_DEC:f64 = 1000000.0; //random exploration decrease factor^-1
+const RND_PICK_DEC:f64 = 500000.0; //random exploration decrease factor^-1
 
 
 pub struct PlayerAIQ
@@ -51,12 +51,15 @@ impl PlayerAIQ
 		x
 	}
 	
-	fn field_to_input(field:&Vec<i32>) -> Vec<f64>
+	fn field_to_input(field:&Vec<i32>, p:i32) -> Vec<f64>
 	{
-		let mut input:Vec<f64> = Vec::with_capacity(field.len());
+		let op:i32 = if p == 1 { 2 } else { 1 }; //other player
+		let mut input:Vec<f64> = Vec::with_capacity(field.len() * 3);
 		for val in field.iter()
-		{
-			input.push(*val as f64);
+		{ //3 nodes for every field
+			input.push(if *val == 0 { 1f64 } else { 0f64}); //one for empty fields
+			input.push(if *val == p { 1f64 } else { 0f64}); //one for self players nodes
+			input.push(if *val == op { 1f64 } else { 0f64}); //one for other players nodes
 		}
 		input
 	}
@@ -79,7 +82,7 @@ impl Player for PlayerAIQ
 		{
 			//create new neural net, is it could not be loaded
 			let n = field.get_size();
-			self.nn = Some(NN::new(&[n, 4*n, 4*n, 4*n, 2*n, 2*n, 2*n, 2*n, n, n, n, n, n/2, n/2, n/2, n/2, n/4, n/4, n/4, n/4, field.get_w()])); //set size of NN layers here
+			self.nn = Some(NN::new(&[3*n, 4*n, 4*n, 4*n, 2*n, 2*n, 2*n, 2*n, n, n, n, n, n/2, n/2, n/2, n/2, n/4, n/4, n/4, n/4, field.get_w()])); //set size of NN layers here
 		}
 		else
 		{
@@ -114,7 +117,7 @@ impl Player for PlayerAIQ
 		while !res
 		{
 			//get current state formatted for the neural net (in loop because ownerships gets moved later)
-			let state = PlayerAIQ::field_to_input(field.get_field());
+			let state = PlayerAIQ::field_to_input(field.get_field(), self.pid);
 			
 			//choose action by e-greedy
 			let mut qval = nn.run(&state);
@@ -141,7 +144,7 @@ impl Player for PlayerAIQ
 			if !self.fixed || !res
 			{
 				//get Q values for next state
-				let state2 = PlayerAIQ::field_to_input(field.get_field());
+				let state2 = PlayerAIQ::field_to_input(field.get_field(), self.pid);
 				let qval2 = nn.run(&state2);
 				let x2 = PlayerAIQ::argmax(&qval2);
 				qval[x as usize] = reward + GAMMA * qval2[x2 as usize]; //Q learning (see https://www.reddit.com/r/MachineLearning/comments/1kc8o7/understanding_qlearning_in_neural_networks/)
