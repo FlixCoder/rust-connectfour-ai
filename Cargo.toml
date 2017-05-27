@@ -1,0 +1,8 @@
+[package]
+name = "connect_four"
+version = "0.1.0"
+authors = ["FlixCoder"]
+
+[dependencies]
+nn = "0.1.6"
+rand = "0.3.15"
