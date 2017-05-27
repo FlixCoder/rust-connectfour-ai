@@ -12,8 +12,8 @@ use super::Player;
 use super::super::field::Field;
 
 const GAMMA:f64 = 0.99; //q gamma (action-reward time difference high) //1.0?
-const LR:f64 = 0.6; //neural net learning rate
-const MOM:f64 = 0.2; //neural net momentum
+const LR:f64 = 0.1; //neural net learning rate
+const MOM:f64 = 0.05; //neural net momentum
 const EPOCHS_PER_STEP:u32 = 1; //epochs to learn from each turn
 const RND_PICK_START:f64 = 0.5; //exploration factor start
 const RND_PICK_DEC:f64 = 1000000.0; //random exploration decrease factor^-1
