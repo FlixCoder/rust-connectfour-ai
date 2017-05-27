@@ -36,6 +36,11 @@ impl PlayerAIQ
 		Box::new(PlayerAIQ { initialized: false, pid: 0, fixed: fix, filename: String::new(), games_played: 0, nn: None })
 	}
 	
+	fn get_exploration(games_played:u32) -> f64
+	{
+		RND_PICK_START * (-(games_played as f64)/RND_PICK_DEC).exp()
+	}
+	
 	fn argmax(slice:&[f64]) -> u32
 	{
 		let mut x:u32 = 0;
@@ -62,11 +67,6 @@ impl PlayerAIQ
 			input.push(if *val == op { 1f64 } else { 0f64}); //one for other players nodes
 		}
 		input
-	}
-	
-	fn get_exploration(games_played:u32) -> f64
-	{
-		RND_PICK_START * (-(games_played as f64)/RND_PICK_DEC).exp()
 	}
 }
 
