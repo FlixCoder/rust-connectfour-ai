@@ -2,7 +2,7 @@
 
 extern crate rand;
 
-use self::rand::Rng;
+use self::rand::{Rng, ThreadRng};
 use super::Player;
 use super::super::field::Field;
 
@@ -11,13 +11,14 @@ pub struct PlayerRandom
 {
 	initialized: bool,
 	pid: i32, //player ID
+	rng: Box<ThreadRng>,
 }
 
 impl PlayerRandom
 {
 	pub fn new() -> Box<PlayerRandom>
 	{
-		Box::new(PlayerRandom { initialized: false, pid: 0 })
+		Box::new(PlayerRandom { initialized: false, pid: 0, rng: Box::new(rand::thread_rng()) })
 	}
 }
 
@@ -36,11 +37,10 @@ impl Player for PlayerRandom
 		if !self.initialized { return false; }
 		
 		let w = field.get_w();
-		let mut rng = rand::thread_rng();
-		let mut random = rng.gen::<u32>() % w;
+		let mut random = (*self.rng).gen::<u32>() % w;
 		while !field.play(self.pid, random)
 		{
-			random = rng.gen::<u32>() % w;
+			random = (*self.rng).gen::<u32>() % w;
 		}
 		
 		true
