@@ -4,6 +4,7 @@ pub mod io_player;
 pub mod random_player;
 pub mod ai_q_player;
 pub mod ai_gen_player;
+pub mod minimax_player;
 
 use super::field::Field;
 
