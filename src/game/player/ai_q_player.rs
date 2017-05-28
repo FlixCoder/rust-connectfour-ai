@@ -11,34 +11,43 @@ use self::rand::Rng;
 use super::Player;
 use super::super::field::Field;
 
-const GAMMA:f64 = 0.99; //q gamma (action-reward time difference high) //1.0?
-const LR:f64 = 0.2; //neural net learning rate
+const GAMMA:f64 = 0.98; //q gamma (action-reward time difference high) //1.0?
+const LR:f64 = 0.5; //neural net learning rate
+const LR_DECAY:f64 = 25000f64; //NN learning rate decrease (half every DECAY games)
+const LR_MIN:f64 = 0.01; //minimum NN LR
 const MOM:f64 = 0.1; //neural net momentum
-const EPOCHS_PER_STEP:u32 = 1; //epochs to learn from each turn
-const RND_PICK_START:f64 = 0.5; //exploration factor start
-const RND_PICK_DEC:f64 = 500000.0; //random exploration decrease factor^-1
+const EPOCHS_PER_STEP:u32 = 2; //epochs to learn from each turn
+const RND_PICK_START:f64 = 0.2; //exploration factor start
+const RND_PICK_DEC:f64 = 100000f64; //random exploration decrease (half every DEC games)
 
 
 pub struct PlayerAIQ
 {
 	initialized: bool,
-	pid: i32, //player ID
 	fixed: bool, //should the agent learn or not (fixed => dont learn)
 	filename: String,
-	games_played: u32,
+	pid: i32, //player ID
 	nn: Option<NN>,
+	games_played: u32,
+	lr: f64,
+	exploration: f64,
 }
 
 impl PlayerAIQ
 {
 	pub fn new(fix:bool) -> Box<PlayerAIQ>
 	{
-		Box::new(PlayerAIQ { initialized: false, pid: 0, fixed: fix, filename: String::new(), games_played: 0, nn: None })
+		Box::new(PlayerAIQ { initialized: false, pid: 0, fixed: fix, filename: String::new(), games_played: 0, nn: None, lr: LR, exploration: RND_PICK_START })
 	}
 	
-	fn get_exploration(games_played:u32) -> f64
+	fn get_exploration(&self) -> f64
 	{
-		RND_PICK_START * (-(games_played as f64)/RND_PICK_DEC).exp()
+		RND_PICK_START * (2f64).powf(-(self.games_played as f64)/RND_PICK_DEC)
+	}
+	
+	fn get_lr(&self) -> f64
+	{
+		LR_MIN.max(LR * (2f64).powf(-(self.games_played as f64)/LR_DECAY))
 	}
 	
 	fn argmax(slice:&[f64]) -> u32
@@ -56,15 +65,20 @@ impl PlayerAIQ
 		x
 	}
 	
-	fn field_to_input(field:&Vec<i32>, p:i32) -> Vec<f64>
+	fn field_to_input(field:&Field, p:i32) -> Vec<f64>
 	{
 		let op:i32 = if p == 1 { 2 } else { 1 }; //other player
-		let mut input:Vec<f64> = Vec::with_capacity(field.len() * 3);
-		for val in field.iter()
-		{ //3 nodes for every field
-			input.push(if *val == 0 { 1f64 } else { 0f64}); //one for empty fields
-			input.push(if *val == p { 1f64 } else { 0f64}); //one for self players nodes
-			input.push(if *val == op { 1f64 } else { 0f64}); //one for other players nodes
+		let mut input:Vec<f64> = Vec::with_capacity((field.get_size() + field.get_w()) as usize);
+		for val in field.get_field().iter()
+		{ //1 node for every square: -1 enemy, 0 free, 1 own
+			if *val == p { input.push(1f64); }
+			else if *val == op { input.push(-1f64); }
+			else { input.push(0f64); }
+		}
+		for x in 0..field.get_w()
+		{ //1 node for every column: 1 full, 0 free space
+			if field.get_val(x, 0) == 0 { input.push(0f64); }
+			else { input.push(1f64); }
 		}
 		input
 	}
@@ -82,7 +96,9 @@ impl Player for PlayerAIQ
 		{
 			//create new neural net, is it could not be loaded
 			let n = field.get_size();
-			self.nn = Some(NN::new(&[3*n, 4*n, 4*n, 4*n, 2*n, 2*n, 2*n, 2*n, n, n, n, n, n/2, n/2, n/2, n/2, n/4, n/4, n/4, n/4, field.get_w()])); //set size of NN layers here
+			let w = field.get_w();
+			self.nn = Some(NN::new(&[n+w, 4*n, n, w])); //set size of NN layers here
+			//games_played, exploration, lr already set
 		}
 		else
 		{
@@ -99,6 +115,9 @@ impl Player for PlayerAIQ
 			if res.is_err() { return false; }
 			self.games_played = res.unwrap();
 			self.nn = Some(NN::from_json(&nns));
+			
+			self.lr = self.get_lr();
+			self.exploration = self.get_exploration();
 		}
 		
 		self.initialized = true;
@@ -117,12 +136,12 @@ impl Player for PlayerAIQ
 		while !res
 		{
 			//get current state formatted for the neural net (in loop because ownerships gets moved later)
-			let state = PlayerAIQ::field_to_input(field.get_field(), self.pid);
+			let state = PlayerAIQ::field_to_input(field, self.pid);
 			
 			//choose action by e-greedy
 			let mut qval = nn.run(&state);
 			let mut x = PlayerAIQ::argmax(&qval);
-			if rng.gen::<f64>() < PlayerAIQ::get_exploration(self.games_played) //random exploration
+			if rng.gen::<f64>() < self.exploration //random exploration
 			{
 				x = rng.gen::<u32>() % field.get_w();
 			}
@@ -144,7 +163,7 @@ impl Player for PlayerAIQ
 			if !self.fixed || !res
 			{
 				//get Q values for next state
-				let state2 = PlayerAIQ::field_to_input(field.get_field(), self.pid);
+				let state2 = PlayerAIQ::field_to_input(field, self.pid);
 				let qval2 = nn.run(&state2);
 				let x2 = PlayerAIQ::argmax(&qval2);
 				qval[x as usize] = reward + GAMMA * qval2[x2 as usize]; //Q learning (see https://www.reddit.com/r/MachineLearning/comments/1kc8o7/understanding_qlearning_in_neural_networks/)
@@ -153,7 +172,7 @@ impl Player for PlayerAIQ
 					.halt_condition(HaltCondition::Epochs(EPOCHS_PER_STEP))
 					.log_interval(None)
 					.momentum(MOM)
-					.rate(LR)
+					.rate(self.lr)
 					.go();
 			}
 		}
@@ -165,6 +184,8 @@ impl Player for PlayerAIQ
 	fn outcome(&mut self, field:&mut Field, state:i32)
 	{
 		self.games_played += 1;
+		self.lr = self.get_lr();
+		self.exploration = self.get_exploration();
 	}
 }
 

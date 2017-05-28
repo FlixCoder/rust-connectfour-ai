@@ -73,7 +73,7 @@ impl Field
 	
 	pub fn play(&mut self, player:i32, x:u32) -> bool
 	{
-		if x >= self.w || player < 1 || player > 2
+		if x >= self.w || player < 1 || player > 2 || !self.is_valid_play(x)
 		{
 			return false;
 		}

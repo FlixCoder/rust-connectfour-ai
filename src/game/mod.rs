@@ -146,11 +146,12 @@ impl Game
 		let drawrate:f64 = (draw as f64)/(num as f64)*100.0;
 		let p2wr:f64 = (p2win as f64)/(num as f64)*100.0;
 		
-		println!("-----------------------------------------");
+		println!("-------------------------------------");
 		println!("Results:");
 		println!("Player X wins: {:>6.2}% ({}/{})", p1wr, p1win, num);
 		println!("Draws:         {:>6.2}% ({}/{})", drawrate, draw, num);
 		println!("Player O wins: {:>6.2}% ({}/{})", p2wr, p2win, num);
+		println!("");
 		
 		true
 	}
