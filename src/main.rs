@@ -25,7 +25,7 @@ fn main()
 fn test_io(learn:bool)
 {
 	println!("Player 1: IO");
-	println!("Player 2: AIQ(Fixed)");
+	println!("Player 2: AIQ{}", if learn {""} else {"Fixed"});
 	
 	let mut game = Game::new();
 	game.set_start_player(1);

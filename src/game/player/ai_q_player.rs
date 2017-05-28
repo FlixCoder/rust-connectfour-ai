@@ -97,7 +97,7 @@ impl Player for PlayerAIQ
 			//create new neural net, is it could not be loaded
 			let n = field.get_size();
 			let w = field.get_w();
-			self.nn = Some(NN::new(&[n+w, 4*n, n, w])); //set size of NN layers here
+			self.nn = Some(NN::new(&[n+w, 4*n, w])); //set size of NN layers here
 			//games_played, exploration, lr already set
 		}
 		else
