@@ -83,7 +83,8 @@ impl Player for PlayerIO
 	{
 		field.print();
 		println!("");
-		println!("Player {} won the game!", if state == 1 { "X" } else { "O" } );
+		if state == -1 { println!("Draw!"); }
+		else { println!("Player {} won the game!", if state == 1 { "X" } else { "O" }); }
 	}
 }
 

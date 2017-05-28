@@ -9,10 +9,11 @@ const G_P_S:u32 = 100; //games per side
 fn main()
 {
 	let module = 5;
-	let num = 100_000;
+	let num = 1_000;
 	
 	match module
 	{
+		-1=> other(),
 		0 => test_io(true), //learn
 		1 => test_io(false), //dont learn
 		2 => test_random(num),
@@ -23,6 +24,19 @@ fn main()
 		7 => for _ in 0..10 { learn_ai(num/10); },
 		_ => (),
 	}
+}
+
+fn other()
+{
+	println!("Player 1: IO");
+	println!("Player 2: Other");
+	
+	let mut game = Game::new();
+	game.set_start_player(1);
+	game.set_player1(PlayerType::IO);
+	game.set_player2(PlayerType::Minimax);
+	
+	game.play_many(2, 1);
 }
 
 fn test_io(learn:bool)
