@@ -5,7 +5,7 @@ use super::super::field::Field;
 use std::thread;
 use std::f32;
 
-const DEEPNESS:u32 = 5; //recursion limit
+const DEEPNESS:u32 = 2; //recursion limit
 
 
 pub struct PlayerMinimax
