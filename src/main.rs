@@ -8,8 +8,8 @@ const G_P_S:u32 = 100; //games per side
 
 fn main()
 {
-	let module = 5;
-	let num = 50_000;
+	let module = 0;
+	let num = 100_000;
 	
 	match module
 	{
@@ -28,8 +28,8 @@ fn main()
 
 fn other()
 {
-	println!("Player 1: IO");
-	println!("Player 2: Other");
+	println!("Player X: IO");
+	println!("Player O: Other");
 	
 	let mut game = Game::new();
 	game.set_start_player(1);
@@ -41,8 +41,8 @@ fn other()
 
 fn test_io(learn:bool)
 {
-	println!("Player 1: IO");
-	println!("Player 2: AIQ{}", if learn {""} else {"Fixed"});
+	println!("Player X: IO");
+	println!("Player O: AIQ{}", if learn {""} else {"Fixed"});
 	
 	let mut game = Game::new();
 	game.set_start_player(1);
@@ -55,8 +55,8 @@ fn test_io(learn:bool)
 
 fn test_random(num:u32)
 {
-	println!("Player 1: Random");
-	println!("Player 2: AIQFixed");
+	println!("Player X: Random");
+	println!("Player O: AIQFixed");
 	
 	let mut game = Game::new();
 	game.set_start_player(1);
@@ -73,8 +73,8 @@ fn test_random(num:u32)
 
 fn test_minimax(num:u32)
 {
-	println!("Player 1: Minimax");
-	println!("Player 2: AIQFixed");
+	println!("Player X: Minimax");
+	println!("Player O: AIQFixed");
 	
 	let mut game = Game::new();
 	game.set_start_player(1);
@@ -91,8 +91,8 @@ fn test_minimax(num:u32)
 
 fn learn_random(num:u32)
 {
-	println!("Player 1: Random");
-	println!("Player 2: AIQ");
+	println!("Player X: Random");
+	println!("Player O: AIQ");
 	
 	let mut game = Game::new();
 	game.set_start_player(1);
@@ -109,8 +109,8 @@ fn learn_random(num:u32)
 
 fn learn_minimax(num:u32)
 {
-	println!("Player 1: Minimax");
-	println!("Player 2: AIQ");
+	println!("Player X: Minimax");
+	println!("Player O: AIQ");
 	
 	let mut game = Game::new();
 	game.set_start_player(1);
@@ -127,8 +127,8 @@ fn learn_minimax(num:u32)
 
 fn learn_ai(num:u32)
 {
-	println!("Player 1: AIQFixed");
-	println!("Player 2: AIQ");
+	println!("Player X: AIQFixed");
+	println!("Player O: AIQ");
 	
 	let mut game = Game::new();
 	game.set_start_player(1);

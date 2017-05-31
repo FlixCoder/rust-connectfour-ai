@@ -15,7 +15,7 @@ const GAMMA:f64 = 0.99; //q gamma (action-reward time difference high) //1.0?
 const LR:f64 = 0.5; //neural net learning rate
 const LR_DECAY:f64 = 50000f64; //NN learning rate decrease (half every DECAY games)
 const LR_MIN:f64 = 0.01; //minimum NN LR
-const MOM:f64 = 0.05; //neural net momentum
+const MOM:f64 = 0.1; //neural net momentum
 const EPOCHS_PER_STEP:u32 = 1; //epochs to learn from each turn
 const RND_PICK_START:f64 = 0.2; //exploration factor start
 const RND_PICK_DEC:f64 = 50000f64; //random exploration decrease (half every DEC games)
@@ -111,7 +111,7 @@ impl Player for PlayerAIQ
 			//create new neural net, is it could not be loaded
 			let n = field.get_size();
 			let w = field.get_w();
-			self.nn = Some(NN::new(&[2*n+w, 4*n, n, n, w])); //set size of NN layers here
+			self.nn = Some(NN::new(&[2*n+w, 4*n, n, w])); //set size of NN layers here
 			//games_played, exploration, lr already set
 		}
 		else
@@ -164,16 +164,16 @@ impl Player for PlayerAIQ
 			
 			//perform action and get reward
 			#[allow(unused_assignments)]
-			let mut reward:f64 = 0.0;
+			let mut reward:f64 = 0.5;
 			res = field.play(self.pid, x);
 			let flag = field.get_state();
 			if res
 			{
-				if flag == -1 || flag == 0 { reward = 0.0; } //running game or draw
-				else if flag == self.pid { reward = 1.0; } //win
-				else { reward = -1.0; } //lose
+				if flag == -1 || flag == 0 { reward = 0.5; } //running game or draw
+				else if flag == self.pid { reward = 1.0; } //win - highest sigmoid output
+				else { reward = 0.0; } //lose - lowest sigmoid output
 			}
-			else { reward = -1.0; } //move did not meet the rules
+			else { reward = 0.0; } //move did not meet the rules
 			
 			//calculate NN update if not fixed, but learn if move did not was rule-conform
 			if !self.fixed || !res
@@ -182,7 +182,8 @@ impl Player for PlayerAIQ
 				let state2 = PlayerAIQ::field_to_input(field, self.pid);
 				let qval2 = targetnn.run(&state2); //use double q learning target nn, to decouple action and value a bit
 				let x2 = PlayerAIQ::argmax(&qval2);
-				qval[x as usize] = reward + GAMMA * qval2[x2 as usize]; //Q learning (see https://www.reddit.com/r/MachineLearning/comments/1kc8o7/understanding_qlearning_in_neural_networks/)
+				if reward == 1.0 { qval[x as usize] = reward; } //win should not get worse by network-errors, else learn normally:
+				else { qval[x as usize] = (reward + GAMMA * qval2[x2 as usize]) / 2.0; } //Q learning (divide by 2 to stay in [0,1] for sigmoid)
 				let training = [(state, qval)];
 				nn.train(&training)
 					.halt_condition(HaltCondition::Epochs(EPOCHS_PER_STEP))
