@@ -1,24 +1,25 @@
 #![allow(dead_code)]
 
-extern crate nn;
 extern crate rand;
+extern crate nn;
 
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::io::prelude::*;
-use self::nn::{NN, HaltCondition};
 use self::rand::Rng;
+use self::nn::{NN, HaltCondition};
 use super::Player;
 use super::super::field::Field;
 
 const GAMMA:f64 = 0.99; //q gamma (action-reward time difference high) //1.0?
-const LR:f64 = 0.5; //neural net learning rate
-const LR_DECAY:f64 = 50000f64; //NN learning rate decrease (half every DECAY games)
-const LR_MIN:f64 = 0.01; //minimum NN LR
-const MOM:f64 = 0.1; //neural net momentum
+const LR:f64 = 0.1; //neural net learning rate
+const LR_DECAY:f64 = 10000f64; //NN learning rate decrease (half every DECAY games)
+const LR_MIN:f64 = 0.001; //minimum NN LR
+const MOM:f64 = 0.05; //neural net momentum
 const EPOCHS_PER_STEP:u32 = 1; //epochs to learn from each turn
 const RND_PICK_START:f64 = 0.2; //exploration factor start
-const RND_PICK_DEC:f64 = 50000f64; //random exploration decrease (half every DEC games)
+const RND_PICK_DEC:f64 = 20000f64; //random exploration decrease (half every DEC games)
+const REPLAY_SIZE:usize = 100;
 
 
 pub struct PlayerAIQ
@@ -32,13 +33,16 @@ pub struct PlayerAIQ
 	games_played: u32,
 	lr: f64,
 	exploration: f64,
+	replay_buffer: Vec<(Vec<f64>, Vec<f64>)>,
 }
 
 impl PlayerAIQ
 {
 	pub fn new(fix:bool) -> Box<PlayerAIQ>
 	{
-		Box::new(PlayerAIQ { initialized: false, fixed: fix, filename: String::new(), pid: 0, nn: None, targetnn: None, games_played: 0, lr: LR, exploration: RND_PICK_START })
+		Box::new(PlayerAIQ { initialized: false, fixed: fix, filename: String::new(), pid: 0,
+				nn: None, targetnn: None, games_played: 0, lr: LR, exploration: RND_PICK_START,
+				replay_buffer: Vec::with_capacity(REPLAY_SIZE) })
 	}
 	
 	fn get_exploration(&self) -> f64
@@ -182,18 +186,29 @@ impl Player for PlayerAIQ
 				let state2 = PlayerAIQ::field_to_input(field, self.pid);
 				let qval2 = targetnn.run(&state2); //use double q learning target nn, to decouple action and value a bit
 				let x2 = PlayerAIQ::argmax(&qval2);
+				//calculate q update
 				if reward == 1.0 { qval[x as usize] = reward; } //win should not get worse by network-errors, else learn normally:
 				else { qval[x as usize] = (reward + GAMMA * qval2[x2 as usize]) / 2.0; } //Q learning (divide by 2 to stay in [0,1] for sigmoid)
-				let training = [(state, qval)];
+				
+				//train on a random replay_buffer element and the latest experience (q update)
+				let mut training = Vec::new();
+				let len = self.replay_buffer.len();
+				if len == REPLAY_SIZE { training.push(self.replay_buffer.swap_remove(rng.gen::<usize>() % len)); }
+				training.push((state, qval));
+				//initiate training
 				nn.train(&training)
 					.halt_condition(HaltCondition::Epochs(EPOCHS_PER_STEP))
 					.log_interval(None)
+					//.log_interval(Some(2)) //debug
 					.momentum(MOM)
 					.rate(self.lr)
 					.go();
+				
+				//add latest experience to replay_buffer
+				self.replay_buffer.push(training.pop().unwrap());
 			}
 		}
-		
+		//field.print(); //debug
 		res
 	}
 	

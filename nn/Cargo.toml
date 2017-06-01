@@ -1,0 +1,6 @@
+[package]
+name = "nn"
+version = "0.1.0"
+authors = ["FlixCoder <xbbfanx@web.de>"]
+
+[dependencies]

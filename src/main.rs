@@ -8,8 +8,8 @@ const G_P_S:u32 = 100; //games per side
 
 fn main()
 {
-	let module = 0;
-	let num = 100_000;
+	let module = 5;
+	let num = 10_000;
 	
 	match module
 	{
