@@ -12,12 +12,12 @@ use self::nn::{NN, HaltCondition};
 use super::Player;
 use super::super::field::Field;
 
-const GAMMA:f64 = 0.99; //temporal sureness (->1 means more sure about early actions always lead to win)
+const GAMMA:f64 = 0.95; //temporal sureness (->1 means more sure about early actions always lead to win)
 const LR:f64 = 0.1; //neural net learning rate
 const LR_DECAY:f64 = 10000f64; //NN learning rate decrease (half every DECAY games)
 const LR_MIN:f64 = 0.01; //minimum NN LR
 const MOM:f64 = 0.05; //neural net momentum
-const EPOCHS_PER_STEP:u32 = 1; //epochs to learn from each turn
+const EPOCHS_PER_STEP:u32 = 2; //epochs to learn from each turn/game
 const RND_PICK_START:f64 = 1.0f64; //exploration factor start
 const RND_PICK_DEC:f64 = 20000f64; //random exploration decrease (half every DEC games)
 
@@ -231,6 +231,7 @@ impl Player for PlayerAIQOff
 						.momentum(MOM)
 						.rate(self.lr)
 						.go();
+			self.play_buffer.clear();
 		}
 		//set parameters
 		self.games_played += 1;
