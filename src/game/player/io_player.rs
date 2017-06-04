@@ -1,3 +1,4 @@
+//! IO player (human interface player))
 #![allow(dead_code)]
 
 use std::io;

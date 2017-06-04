@@ -1,3 +1,4 @@
+//! Player playing random actions
 #![allow(dead_code)]
 
 extern crate rand;

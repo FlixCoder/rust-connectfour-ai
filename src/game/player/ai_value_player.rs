@@ -1,4 +1,4 @@
-//! Minimax player
+//! trained NN to represent value heuristic and use minimax
 #![allow(dead_code)]
 
 use super::Player;
@@ -9,17 +9,17 @@ use std::f32;
 const DEEPNESS:u32 = 5; //recursion limit
 
 
-pub struct PlayerMinimax
+pub struct PlayerAIValue
 {
 	initialized: bool,
 	pid: i32, //player ID
 }
 
-impl PlayerMinimax
+impl PlayerAIValue
 {
-	pub fn new() -> Box<PlayerMinimax>
+	pub fn new() -> Box<PlayerAIValue>
 	{
-		Box::new(PlayerMinimax { initialized: false, pid: 0 })
+		Box::new(PlayerAIValue { initialized: false, pid: 0 })
 	}
 	
 	fn heur(field:&mut Field, p:i32) -> f32
@@ -93,7 +93,7 @@ impl PlayerMinimax
 	fn minimax(field:&mut Field, p:i32, deep:u32) -> f32
 	{
 		let op = if p == 1 {2} else {1};
-		if deep > DEEPNESS { return PlayerMinimax::heur(field, if deep%2 == 0 {op} else {p}); } //leaf node -> return evaluated heuristic
+		if deep > DEEPNESS { return PlayerAIValue::heur(field, if deep%2 == 0 {op} else {p}); } //leaf node -> return evaluated heuristic
 		let state = field.get_state(); //return early on game end
 		if state == -1 { return 0.0; }
 		else if state == p { return if deep%2 == 0 {f32::MIN} else {f32::MAX}; }
@@ -106,7 +106,7 @@ impl PlayerMinimax
 			if field.is_valid_play(i)
 			{
 				field.play(p, i);
-				let val = PlayerMinimax::minimax(field, op, deep+1);
+				let val = PlayerAIValue::minimax(field, op, deep+1);
 				field.undo();
 				if (deep%2 == 0 && val < heur) || (deep%2 == 1 && val > heur)
 				{
@@ -118,7 +118,7 @@ impl PlayerMinimax
 	}
 }
 
-impl Player for PlayerMinimax
+impl Player for PlayerAIValue
 {
 	#[allow(unused_variables)]
 	fn init(&mut self, field:&Field, p:i32) -> bool
@@ -126,7 +126,8 @@ impl Player for PlayerMinimax
 		if DEEPNESS < 1 { return false; }
 		self.initialized = true;
 		self.pid = p;
-		true
+		println!("Error: PlayerAIValue is not implemented yet!");
+		false
 	}
 	
 	fn play(&mut self, field:&mut Field) -> bool
@@ -142,7 +143,7 @@ impl Player for PlayerMinimax
 			let mut pfield = field.clone();
 			handles.push(thread::spawn(move ||
 				{
-					if pfield.play(p, i) { PlayerMinimax::minimax(&mut pfield, op, 2) }
+					if pfield.play(p, i) { PlayerAIValue::minimax(&mut pfield, op, 2) }
 					else { f32::NEG_INFINITY }
 					//undo not needed, because it was cloned and will be dropped
 				}));
@@ -177,7 +178,7 @@ impl Player for PlayerMinimax
 	}
 }
 
-impl Drop for PlayerMinimax
+impl Drop for PlayerAIValue
 {
 	fn drop(&mut self)
 	{

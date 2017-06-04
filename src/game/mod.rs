@@ -10,9 +10,12 @@ use self::player::random_player::PlayerRandom;
 use self::player::ai_q_player::PlayerAIQ;
 use self::player::ai_gen_player::PlayerAIGen;
 use self::player::minimax_player::PlayerMinimax;
+use self::player::ai_qoff_player::PlayerAIQOff;
+use self::player::ai_value_player::PlayerAIValue;
 
 
-pub enum PlayerType {None, IO, Random, AIQ, AIQFixed, AIGen, Minimax}
+#[derive(Debug)]
+pub enum PlayerType {None, IO, Random, AIQ, AIQFixed, AIGen, Minimax, AIQOff, AIQOffFixed, AIValue}
 
 pub struct Game
 {
@@ -40,6 +43,9 @@ impl Game
 			PlayerType::AIQFixed => self.p1 = Some(PlayerAIQ::new(true)),
 			PlayerType::AIGen => self.p1 = Some(PlayerAIGen::new()),
 			PlayerType::Minimax => self.p1 = Some(PlayerMinimax::new()),
+			PlayerType::AIQOff => self.p1 = Some(PlayerAIQOff::new(false)),
+			PlayerType::AIQOffFixed => self.p1 = Some(PlayerAIQOff::new(true)),
+			PlayerType::AIValue => self.p1 = Some(PlayerAIValue::new()),
 		}
 		
 		if self.p1.is_some()
@@ -64,6 +70,9 @@ impl Game
 			PlayerType::AIQFixed => self.p2 = Some(PlayerAIQ::new(true)),
 			PlayerType::AIGen => self.p2 = Some(PlayerAIGen::new()),
 			PlayerType::Minimax => self.p2 = Some(PlayerMinimax::new()),
+			PlayerType::AIQOff => self.p2 = Some(PlayerAIQOff::new(false)),
+			PlayerType::AIQOffFixed => self.p2 = Some(PlayerAIQOff::new(true)),
+			PlayerType::AIValue => self.p2 = Some(PlayerAIValue::new()),
 		}
 		
 		if self.p2.is_some()

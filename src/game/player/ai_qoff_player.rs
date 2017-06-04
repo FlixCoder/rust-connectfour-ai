@@ -1,4 +1,4 @@
-//! online reinforcement q learner (kind of double q and replay buffer learning)
+//! offline reinforcement learning (q learning after match is over)
 #![allow(dead_code)]
 
 extern crate rand;
@@ -12,39 +12,36 @@ use self::nn::{NN, HaltCondition};
 use super::Player;
 use super::super::field::Field;
 
-const GAMMA:f64 = 0.99; //q gamma (action-reward time difference high) //1.0?
+const GAMMA:f64 = 0.99; //temporal sureness (->1 means more sure about early actions always lead to win)
 const LR:f64 = 0.1; //neural net learning rate
 const LR_DECAY:f64 = 10000f64; //NN learning rate decrease (half every DECAY games)
 const LR_MIN:f64 = 0.01; //minimum NN LR
 const MOM:f64 = 0.05; //neural net momentum
-//const QLR:f64 = 0.1; //q function learning rate (not used)
 const EPOCHS_PER_STEP:u32 = 1; //epochs to learn from each turn
 const RND_PICK_START:f64 = 1.0f64; //exploration factor start
 const RND_PICK_DEC:f64 = 20000f64; //random exploration decrease (half every DEC games)
-const REPLAY_SIZE:usize = 100;
 
 
-pub struct PlayerAIQ
+pub struct PlayerAIQOff
 {
 	initialized: bool,
 	fixed: bool, //should the agent learn or not (fixed => dont learn)
 	filename: String,
 	pid: i32, //player ID
-	nn: Option<NN>, //online network
-	targetnn: Option<NN>, //target network (temporarely fixed value network)
+	nn: Option<NN>, //neural network
 	games_played: u32,
 	lr: f64,
 	exploration: f64,
-	replay_buffer: Vec<(Vec<f64>, Vec<f64>)>,
+	play_buffer: Vec<(Vec<f64>, Vec<f64>)>,
 }
 
-impl PlayerAIQ
+impl PlayerAIQOff
 {
-	pub fn new(fix:bool) -> Box<PlayerAIQ>
+	pub fn new(fix:bool) -> Box<PlayerAIQOff>
 	{
-		Box::new(PlayerAIQ { initialized: false, fixed: fix, filename: String::new(), pid: 0,
-				nn: None, targetnn: None, games_played: 0, lr: LR, exploration: RND_PICK_START,
-				replay_buffer: Vec::with_capacity(REPLAY_SIZE) })
+		Box::new(PlayerAIQOff { initialized: false, fixed: fix, filename: String::new(), pid: 0,
+				nn: None, games_played: 0, lr: LR, exploration: RND_PICK_START,
+				play_buffer: Vec::new() })
 	}
 	
 	fn get_exploration(&self) -> f64
@@ -104,13 +101,13 @@ impl PlayerAIQ
 	}
 }
 
-impl Player for PlayerAIQ
+impl Player for PlayerAIQOff
 {
 	fn init(&mut self, field:&Field, p:i32) -> bool
 	{
 		self.pid = p;
 		
-		self.filename = format!("AIQ-{}x{}.NN", field.get_w(), field.get_h());
+		self.filename = format!("AIQOff-{}x{}.NN", field.get_w(), field.get_h());
 		let file = File::open(&self.filename);
 		if file.is_err()
 		{
@@ -140,7 +137,6 @@ impl Player for PlayerAIQ
 			self.exploration = self.get_exploration();
 		}
 		
-		self.targetnn = self.nn.clone();
 		self.initialized = true;
 		true
 	}
@@ -151,63 +147,49 @@ impl Player for PlayerAIQ
 		//variables
 		let mut rng = rand::thread_rng();
 		let nn = self.nn.as_mut().unwrap();
-		let targetnn = self.targetnn.as_mut().unwrap();
 		let mut res = false;
 		
 		//choose an action (try again until it meets the rules)
 		while !res
 		{
 			//get current state formatted for the neural net (in loop because ownerships gets moved later)
-			let state = PlayerAIQ::field_to_input(field, self.pid);
+			let state = PlayerAIQOff::field_to_input(field, self.pid);
 			
 			//choose action by e-greedy
 			let mut qval = nn.run(&state);
-			let mut x = PlayerAIQ::argmax(&qval);
+			let mut x = PlayerAIQOff::argmax(&qval);
 			if rng.gen::<f64>() < self.exploration //random exploration
 			{
 				x = rng.gen::<u32>() % field.get_w();
 			}
 			
-			//perform action and get reward
-			#[allow(unused_assignments)]
-			let mut reward:f64 = 0.5;
+			//perform action
 			res = field.play(self.pid, x);
-			let flag = field.get_state();
-			if res
-			{
-				if flag == -1 || flag == 0 { reward = 0.5; } //running game or draw
-				else if flag == self.pid { reward = 1.0; } //win - highest sigmoid output
-				else { reward = 0.0; } //lose - lowest sigmoid output
-			}
-			else { reward = 0.0; } //move did not meet the rules
 			
-			//calculate NN update if not fixed, but learn if move did not was rule-conform
+			//save play data if not fixed, but learn if move did not was rule-conform
 			if !self.fixed || !res
 			{
-				//get Q values for next state
-				let state2 = PlayerAIQ::field_to_input(field, self.pid);
-				let qval2 = targetnn.run(&state2); //use double q learning target nn, to decouple action and value a bit
-				let x2 = PlayerAIQ::argmax(&qval2);
-				//calculate q update
-				if reward == 1.0 { qval[x as usize] = reward; } //win should not get worse by network-errors, else learn normally:
-				else { qval[x as usize] = (reward + GAMMA * qval2[x2 as usize]) / 2.0; } //Q learning (divide by 2 to stay in [0,1] for sigmoid)
+				//calculate q update or collect data for later learn
+				if !res { qval[x as usize] = 0f64; } //invalid play instant learn
+				else { qval[x as usize] = -1f64; } //mark field to set values later for learning
 				
-				//train on a random replay_buffer element and the latest experience (q update)
-				let mut training = Vec::new();
-				let len = self.replay_buffer.len();
-				if len == REPLAY_SIZE { training.push(self.replay_buffer.swap_remove(rng.gen::<usize>() % len)); }
-				training.push((state, qval));
-				//initiate training
-				nn.train(&training)
-					.halt_condition(HaltCondition::Epochs(EPOCHS_PER_STEP))
-					.log_interval(None)
-					//.log_interval(Some(2)) //debug
-					.momentum(MOM)
-					.rate(self.lr)
-					.go();
-				
-				//add latest experience to replay_buffer
-				self.replay_buffer.push(training.pop().unwrap());
+				//initiate training or save data
+				if res
+				{
+					//add latest experience to replay_buffer
+					self.play_buffer.push((state, qval));
+				}
+				else
+				{
+					let training = [(state, qval)];
+					nn.train(&training)
+						.halt_condition(HaltCondition::Epochs(EPOCHS_PER_STEP))
+						.log_interval(None)
+						//.log_interval(Some(2)) //debug
+						.momentum(MOM)
+						.rate(self.lr)
+						.go();
+				}
 			}
 		}
 		//field.print(); //debug
@@ -217,14 +199,47 @@ impl Player for PlayerAIQ
 	#[allow(unused_variables)]
 	fn outcome(&mut self, field:&mut Field, state:i32)
 	{
+		if self.initialized && !self.fixed
+		{
+			//get reward
+			let otherp = if self.pid == 1 {2} else {1};
+			let mut reward = 0f64; //draw (or running, should not happen)
+			if state == self.pid { reward = 1f64; }
+			else if state == otherp { reward = -1f64; }
+			
+			//learn
+			let w:usize = field.get_w() as usize;
+			let len = self.play_buffer.len() as i32;
+			for count in 0..len
+			{
+				let mut qval = &mut self.play_buffer[count as usize].1;
+				for i in 0..w
+				{
+					if qval[i] == -1f64
+					{
+						qval[i] = (GAMMA.powi(len - count) * reward + 1f64) / 2f64; // (+1)/2 => accumulate for sigmoid
+						break;
+					}
+				}
+			}
+			
+			let nn = self.nn.as_mut().unwrap();
+			nn.train(&self.play_buffer)
+						.halt_condition(HaltCondition::Epochs(EPOCHS_PER_STEP))
+						.log_interval(None)
+						//.log_interval(Some(2)) //debug
+						.momentum(MOM)
+						.rate(self.lr)
+						.go();
+		}
+		//set parameters
 		self.games_played += 1;
 		self.lr = self.get_lr();
 		self.exploration = self.get_exploration();
-		self.targetnn = self.nn.clone();
 	}
 }
 
-impl Drop for PlayerAIQ
+impl Drop for PlayerAIQOff
 {
 	fn drop(&mut self)
 	{

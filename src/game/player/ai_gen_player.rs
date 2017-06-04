@@ -1,3 +1,4 @@
+//! genetic neural net algorithm (not implemented yet)
 #![allow(dead_code)]
 
 use super::Player;
@@ -26,6 +27,7 @@ impl Player for PlayerAIGen
 		self.initialized = true;
 		self.pid = p;
 		
+		println!("Error: PlayerAIGen is not implemented yet!");
 		false
 	}
 	
