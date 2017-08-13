@@ -17,7 +17,7 @@ const LR:f64 = 0.1; //neural net learning rate
 const LR_DECAY:f64 = 10000f64; //NN learning rate decrease (half every DECAY games)
 const LR_MIN:f64 = 0.01; //minimum NN LR
 const MOM:f64 = 0.05; //neural net momentum
-const EPOCHS_PER_STEP:u32 = 2; //epochs to learn from each turn/game
+const EPOCHS_PER_STEP:u32 = 10; //epochs to learn from each turn/game
 const RND_PICK_START:f64 = 1.0f64; //exploration factor start
 const RND_PICK_DEC:f64 = 20000f64; //random exploration decrease (half every DEC games)
 
@@ -183,7 +183,7 @@ impl Player for PlayerAIQOff
 				{
 					let training = [(state, qval)];
 					nn.train(&training)
-						.halt_condition(HaltCondition::Epochs(EPOCHS_PER_STEP))
+						.halt_condition(HaltCondition::Epochs(1)) //only one epoch for rule mistakes
 						.log_interval(None)
 						//.log_interval(Some(2)) //debug
 						.momentum(MOM)

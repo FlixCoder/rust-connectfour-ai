@@ -6,3 +6,19 @@ authors = ["FlixCoder"]
 [dependencies]
 rand = "0.3.15"
 nn = { path = "../nn" }  #https://github.com/jackm321/RustNN
+
+
+[profile.dev]
+opt-level = 3
+debug = true
+lto = true
+panic = "unwind"
+debug-assertions = true
+
+[profile.release]
+opt-level = 3
+debug = false
+lto = true
+panic = "unwind"
+debug-assertions = false
+
