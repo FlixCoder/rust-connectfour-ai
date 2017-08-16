@@ -38,8 +38,8 @@ fn test()
 #[allow(dead_code)]
 fn train()
 {
-	let num = 100_000; //number of games to play
-	let gps = 100; //games per side
+	let num = 50_000; //number of games to play
+	let gps = 10; //games per side
 	let p1 = PlayerType::Minimax;
 	let p2 = PlayerType::AIQOff;
 	

@@ -20,6 +20,7 @@ const MOM:f64 = 0.05; //neural net momentum
 const EPOCHS_PER_STEP:u32 = 10; //epochs to learn from each turn/game
 const RND_PICK_START:f64 = 1.0f64; //exploration factor start
 const RND_PICK_DEC:f64 = 20000f64; //random exploration decrease (half every DEC games)
+const LEARNING_SET:i32 = 100; //number of games to collect before learning
 
 
 pub struct PlayerAIQOff
@@ -33,6 +34,7 @@ pub struct PlayerAIQOff
 	lr: f64,
 	exploration: f64,
 	play_buffer: Vec<(Vec<f64>, Vec<f64>)>,
+	num_buffered: i32,
 }
 
 impl PlayerAIQOff
@@ -41,7 +43,7 @@ impl PlayerAIQOff
 	{
 		Box::new(PlayerAIQOff { initialized: false, fixed: fix, filename: String::new(), pid: 0,
 				nn: None, games_played: 0, lr: LR, exploration: RND_PICK_START,
-				play_buffer: Vec::new() })
+				play_buffer: Vec::new(), num_buffered: 0 })
 	}
 	
 	fn get_exploration(&self) -> f64
@@ -98,6 +100,20 @@ impl PlayerAIQOff
 			else { input.push(0f64); } //illegal move, nobody can win
 		}
 		input
+	}
+	
+	fn learn(&mut self)
+	{
+		let nn = self.nn.as_mut().unwrap();
+		nn.train(&self.play_buffer)
+					.halt_condition(HaltCondition::Epochs(EPOCHS_PER_STEP))
+					.log_interval(None)
+					//.log_interval(Some(2)) //debug
+					.momentum(MOM)
+					.rate(self.lr)
+					.go();
+		self.play_buffer.clear();
+		self.num_buffered = 0;
 	}
 }
 
@@ -199,7 +215,7 @@ impl Player for PlayerAIQOff
 	#[allow(unused_variables)]
 	fn outcome(&mut self, field:&mut Field, state:i32)
 	{
-		if self.initialized && !self.fixed
+		if self.initialized && !self.fixed //learning
 		{
 			//get reward
 			let otherp = if self.pid == 1 {2} else {1};
@@ -207,10 +223,12 @@ impl Player for PlayerAIQOff
 			if state == self.pid { reward = 1f64; }
 			else if state == otherp { reward = -1f64; }
 			
-			//learn
+			//compute learning data
 			let w:usize = field.get_w() as usize;
 			let len = self.play_buffer.len() as i32;
-			for count in 0..len
+			let mut start = 0;
+			if len > (field.get_w() * field.get_h()) as i32 { start = len - (field.get_w() * field.get_h()) as i32; }
+			for count in start..len
 			{
 				let mut qval = &mut self.play_buffer[count as usize].1;
 				for i in 0..w
@@ -223,15 +241,9 @@ impl Player for PlayerAIQOff
 				}
 			}
 			
-			let nn = self.nn.as_mut().unwrap();
-			nn.train(&self.play_buffer)
-						.halt_condition(HaltCondition::Epochs(EPOCHS_PER_STEP))
-						.log_interval(None)
-						//.log_interval(Some(2)) //debug
-						.momentum(MOM)
-						.rate(self.lr)
-						.go();
-			self.play_buffer.clear();
+			//learn
+			self.num_buffered += 1;
+			if self.num_buffered >= LEARNING_SET { self.learn(); }
 		}
 		//set parameters
 		self.games_played += 1;
@@ -247,6 +259,10 @@ impl Drop for PlayerAIQOff
 		//write neural net to file, if it may has learned and was initialized
 		if self.initialized && !self.fixed
 		{
+			//learn
+			if self.num_buffered > 0 { self.learn(); }
+			
+			//save NN
 			let file = File::create(&self.filename);
 			if file.is_err() { println!("Warning: Could not write AIQ NN file!"); return; }
 			let mut writer = BufWriter::new(file.unwrap());
