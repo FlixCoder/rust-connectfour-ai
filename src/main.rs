@@ -21,6 +21,7 @@ fn test()
 	
 	println!("Player X: {:?}", p1);
 	println!("Player O: {:?}", p2);
+	println!("Playing {} games..", num);
 	
 	let mut game = Game::new();
 	game.set_start_player(1);
@@ -38,13 +39,14 @@ fn test()
 #[allow(dead_code)]
 fn train()
 {
-	let num = 50_000; //number of games to play
+	let num = 100_000; //number of games to play
 	let gps = 10; //games per side
 	let p1 = PlayerType::Minimax;
 	let p2 = PlayerType::AIQOff;
 	
 	println!("Player X: {:?}", p1);
 	println!("Player O: {:?}", p2);
+	println!("Playing {} games..", num);
 	
 	let mut game = Game::new();
 	game.set_start_player(1);

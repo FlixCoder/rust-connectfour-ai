@@ -13,15 +13,14 @@ use super::Player;
 use super::super::field::Field;
 
 const GAMMA:f64 = 0.99; //q gamma (action-reward time difference high) //1.0?
-const LR:f64 = 0.1; //neural net learning rate
-const LR_DECAY:f64 = 10000f64; //NN learning rate decrease (half every DECAY games)
-const LR_MIN:f64 = 0.01; //minimum NN LR
-const MOM:f64 = 0.05; //neural net momentum
-//const QLR:f64 = 0.1; //q function learning rate (not used)
+const LR:f64 = 0.5; //neural net learning rate
+const LR_DECAY:f64 = 25000f64; //NN learning rate decrease (half every DECAY games)
+const LR_MIN:f64 = 0.1; //minimum NN LR
+const MOM:f64 = 0.1; //neural net momentum
 const EPOCHS_PER_STEP:u32 = 1; //epochs to learn from each turn
-const RND_PICK_START:f64 = 1.0f64; //exploration factor start
+const RND_PICK_START:f64 = 0.5f64; //exploration factor start
 const RND_PICK_DEC:f64 = 20000f64; //random exploration decrease (half every DEC games)
-const REPLAY_SIZE:usize = 100;
+const RND_PICK_MIN:f64 = 0.05f64; //exploration rate minimum
 
 
 pub struct PlayerAIQ
@@ -35,7 +34,6 @@ pub struct PlayerAIQ
 	games_played: u32,
 	lr: f64,
 	exploration: f64,
-	replay_buffer: Vec<(Vec<f64>, Vec<f64>)>,
 }
 
 impl PlayerAIQ
@@ -43,13 +41,12 @@ impl PlayerAIQ
 	pub fn new(fix:bool) -> Box<PlayerAIQ>
 	{
 		Box::new(PlayerAIQ { initialized: false, fixed: fix, filename: String::new(), pid: 0,
-				nn: None, targetnn: None, games_played: 0, lr: LR, exploration: RND_PICK_START,
-				replay_buffer: Vec::with_capacity(REPLAY_SIZE) })
+				nn: None, targetnn: None, games_played: 0, lr: LR, exploration: RND_PICK_START})
 	}
 	
 	fn get_exploration(&self) -> f64
 	{
-		RND_PICK_START * (2f64).powf(-(self.games_played as f64)/RND_PICK_DEC)
+		RND_PICK_MIN.max(RND_PICK_START * (2f64).powf(-(self.games_played as f64)/RND_PICK_DEC))
 	}
 	
 	fn get_lr(&self) -> f64
@@ -114,10 +111,10 @@ impl Player for PlayerAIQ
 		let file = File::open(&self.filename);
 		if file.is_err()
 		{
-			//create new neural net, is it could not be loaded
+			//create new neural net, as it could not be loaded
 			let n = field.get_size();
 			let w = field.get_w();
-			self.nn = Some(NN::new(&[2*n+w, 4*n, 2*n, n, n, n/2, w])); //set size of NN layers here
+			self.nn = Some(NN::new(&[2*n+w, 4*n, n, n/2, w])); //set size of NN layers here
 			//games_played, exploration, lr already set
 		}
 		else
@@ -179,7 +176,7 @@ impl Player for PlayerAIQ
 				else if flag == self.pid { reward = 1.0; } //win - highest sigmoid output
 				else { reward = 0.0; } //lose - lowest sigmoid output
 			}
-			else { reward = 0.0; } //move did not meet the rules
+			else { reward = 0.1; } //move did not meet the rules
 			
 			//calculate NN update if not fixed, but learn if move did not was rule-conform
 			if !self.fixed || !res
@@ -189,13 +186,11 @@ impl Player for PlayerAIQ
 				let qval2 = targetnn.run(&state2); //use double q learning target nn, to decouple action and value a bit
 				let x2 = PlayerAIQ::argmax(&qval2);
 				//calculate q update
-				if reward == 1.0 { qval[x as usize] = reward; } //win should not get worse by network-errors, else learn normally:
-				else { qval[x as usize] = (reward + GAMMA * qval2[x2 as usize]) / 2.0; } //Q learning (divide by 2 to stay in [0,1] for sigmoid)
+				/*if reward == 1.0 { qval[x as usize] = reward; } //win should not get worse by network-errors, else learn normally:
+				else*/ { qval[x as usize] = (reward + GAMMA * qval2[x2 as usize]) / (1.0 + GAMMA); } //Q learning (divide to stay in [0,1] for sigmoid)
 				
 				//train on a random replay_buffer element and the latest experience (q update)
 				let mut training = Vec::new();
-				let len = self.replay_buffer.len();
-				if len == REPLAY_SIZE { training.push(self.replay_buffer.swap_remove(rng.gen::<usize>() % len)); }
 				training.push((state, qval));
 				//initiate training
 				nn.train(&training)
@@ -205,9 +200,6 @@ impl Player for PlayerAIQ
 					.momentum(MOM)
 					.rate(self.lr)
 					.go();
-				
-				//add latest experience to replay_buffer
-				self.replay_buffer.push(training.pop().unwrap());
 			}
 		}
 		//field.print(); //debug
