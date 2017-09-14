@@ -7,20 +7,49 @@ use std::time::Instant;
 #[allow(dead_code, unreachable_code)]
 fn main()
 {
-	match 2
+	match 3
 	{
-		0 => test(),
-		1 => train(),
-		2 => {
+		0 => test_io(),
+		1 => test(),
+		2 => train(),
+		3 => {
+				println!("Training:");
 				for _ in 0..100
 				{
 					train();
 				}
+				println!("Testing:");
+				test();
 			},
 		_ => {}
 	}
 }
 
+
+#[allow(dead_code)]
+fn test_io()
+{
+	let num = 2; //number of games to play
+	let gps = 1; //games per side
+	let p1 = PlayerType::IO;
+	let p2 = PlayerType::AIQFixed;
+	
+	println!("Player X: {:?}", p1);
+	println!("Player O: {:?}", p2);
+	println!("Playing {} games..", num);
+	
+	let mut game = Game::new();
+	game.set_start_player(1);
+	game.set_player1(p1);
+	game.set_player2(p2);
+	
+	let now = Instant::now();
+	game.play_many(num, gps);
+	let elapsed = now.elapsed();
+	let sec = (elapsed.as_secs() as f64) + (elapsed.subsec_nanos() as f64 / 1000_000_000.0);
+	println!("Time: {} min {:.3} s", (sec / 60.0).floor(), sec % 60.0);
+	println!("");
+}
 
 #[allow(dead_code)]
 fn test()
