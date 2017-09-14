@@ -160,7 +160,7 @@ impl Player for PlayerAIQ
 			//choose action by e-greedy
 			let mut qval = nn.run(&state);
 			let mut x = PlayerAIQ::argmax(&qval);
-			if rng.gen::<f64>() < self.exploration //random exploration
+			if !self.fixed && rng.gen::<f64>() < self.exploration //random exploration if agent should learn. always random after illegal play?
 			{
 				x = rng.gen::<u32>() % field.get_w();
 			}

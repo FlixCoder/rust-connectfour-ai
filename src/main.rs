@@ -41,8 +41,8 @@ fn train()
 {
 	let num = 100_000; //number of games to play
 	let gps = 10; //games per side
-	let p1 = PlayerType::Minimax;
-	let p2 = PlayerType::AIQOff;
+	let p1 = PlayerType::AIQFixed;
+	let p2 = PlayerType::AIQ;
 	
 	println!("Player X: {:?}", p1);
 	println!("Player O: {:?}", p2);
