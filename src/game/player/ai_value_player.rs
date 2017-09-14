@@ -130,6 +130,12 @@ impl Player for PlayerAIValue
 		false
 	}
 	
+	#[allow(unused_variables)]
+	fn startp(&mut self, p:i32)
+	{
+		//nothing
+	}
+	
 	fn play(&mut self, field:&mut Field) -> bool
 	{
 		if !self.initialized { return false; }

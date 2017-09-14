@@ -34,6 +34,11 @@ pub struct PlayerAIQ
 	games_played: u32,
 	lr: f64,
 	exploration: f64,
+	startp: f64, //for NN input (1 = self starting, -1 = enemy starting)
+	memstate: Vec<f64>, //memorize state learning next turn
+	memqval: Vec<f64>, //same
+	memreward: f64, //same
+	memplay: u32, //same
 }
 
 impl PlayerAIQ
@@ -41,7 +46,8 @@ impl PlayerAIQ
 	pub fn new(fix:bool) -> Box<PlayerAIQ>
 	{
 		Box::new(PlayerAIQ { initialized: false, fixed: fix, filename: String::new(), pid: 0,
-				nn: None, targetnn: None, games_played: 0, lr: LR, exploration: RND_PICK_START})
+				nn: None, targetnn: None, games_played: 0, lr: LR, exploration: RND_PICK_START,
+				startp: 0.0, memstate: Vec::new(), memqval: Vec::new(), memreward: -1.0, memplay: 0 })
 	}
 	
 	fn get_exploration(&self) -> f64
@@ -69,10 +75,10 @@ impl PlayerAIQ
 		x
 	}
 	
-	fn field_to_input(field:&mut Field, p:i32) -> Vec<f64>
+	fn field_to_input(field:&mut Field, p:i32, startp:f64) -> Vec<f64>
 	{
 		let op:i32 = if p == 1 { 2 } else { 1 }; //other player
-		let mut input:Vec<f64> = Vec::with_capacity((2*field.get_size() + field.get_w()) as usize);
+		let mut input:Vec<f64> = Vec::with_capacity((2*field.get_size() + field.get_w() + 1) as usize);
 		for (i, val) in field.get_field().iter().enumerate()
 		{ //2 nodes for every square: -1 enemy, 0 free, 1 own; 0 square will not be reached with one move, 1 square can be directly filled
 			if *val == p { input.push(1f64); input.push(0f64); }
@@ -97,6 +103,9 @@ impl PlayerAIQ
 			}
 			else { input.push(0f64); } //illegal move, nobody can win
 		}
+		//1 node for starting player (-1 enemy, 1 self)
+		input.push(startp);
+		//return
 		input
 	}
 }
@@ -114,7 +123,7 @@ impl Player for PlayerAIQ
 			//create new neural net, as it could not be loaded
 			let n = field.get_size();
 			let w = field.get_w();
-			self.nn = Some(NN::new(&[2*n+w, 4*n, n, n/2, w])); //set size of NN layers here
+			self.nn = Some(NN::new(&[2*n+w+1, 4*n, n, n/2, w])); //set size of NN layers here
 			//games_played, exploration, lr already set
 		}
 		else
@@ -142,6 +151,18 @@ impl Player for PlayerAIQ
 		true
 	}
 	
+	fn startp(&mut self, p:i32)
+	{
+		if p == self.pid
+		{
+			self.startp = 1.0;
+		}
+		else
+		{
+			self.startp = -1.0;
+		}
+	}
+	
 	fn play(&mut self, field:&mut Field) -> bool
 	{
 		if !self.initialized { return false; }
@@ -149,70 +170,84 @@ impl Player for PlayerAIQ
 		let mut rng = rand::thread_rng();
 		let nn = self.nn.as_mut().unwrap();
 		let targetnn = self.targetnn.as_mut().unwrap();
-		let mut res = false;
 		
-		//choose an action (try again until it meets the rules)
-		while !res
+		//get current state formatted for the neural net
+		let state = PlayerAIQ::field_to_input(field, self.pid, self.startp);
+		
+		//learn if not first move (reward is already set, won/loose would be outcome) and NN not fixed
+		if !self.fixed && self.memreward != -1.0
 		{
-			//get current state formatted for the neural net (in loop because ownerships gets moved later)
-			let state = PlayerAIQ::field_to_input(field, self.pid);
-			
-			//choose action by e-greedy
-			let mut qval = nn.run(&state);
-			let mut x = PlayerAIQ::argmax(&qval);
-			if !self.fixed && rng.gen::<f64>() < self.exploration //random exploration if agent should learn. always random after illegal play?
-			{
-				x = rng.gen::<u32>() % field.get_w();
-			}
-			
-			//perform action and get reward
-			#[allow(unused_assignments)]
-			let mut reward:f64 = 0.5;
-			res = field.play(self.pid, x);
-			let flag = field.get_state();
-			if res
-			{
-				if flag == -1 || flag == 0 { reward = 0.5; } //running game or draw
-				else if flag == self.pid { reward = 1.0; } //win - highest sigmoid output
-				else { reward = 0.0; } //lose - lowest sigmoid output
-			}
-			else { reward = 0.1; } //move did not meet the rules
-			
-			//calculate NN update if not fixed, but learn if move did not was rule-conform
-			if !self.fixed || !res
-			{
-				//get Q values for next state
-				let state2 = PlayerAIQ::field_to_input(field, self.pid);
-				let qval2 = targetnn.run(&state2); //use double q learning target nn, to decouple action and value a bit
-				let x2 = PlayerAIQ::argmax(&qval2);
-				//calculate q update
-				/*if reward == 1.0 { qval[x as usize] = reward; } //win should not get worse by network-errors, else learn normally:
-				else*/ { qval[x as usize] = (reward + GAMMA * qval2[x2 as usize]) / (1.0 + GAMMA); } //Q learning (divide to stay in [0,1] for sigmoid)
-				
-				//train on a random replay_buffer element and the latest experience (q update)
-				let mut training = Vec::new();
-				training.push((state, qval));
-				//initiate training
-				nn.train(&training)
-					.halt_condition(HaltCondition::Epochs(EPOCHS_PER_STEP))
-					.log_interval(None)
-					//.log_interval(Some(2)) //debug
-					.momentum(MOM)
-					.rate(self.lr)
-					.go();
-			}
+			//get Q values for next state
+			let qval2 = targetnn.run(&state); //use double q learning target nn, to decouple action and value a bit
+			let max = qval2[PlayerAIQ::argmax(&qval2) as usize];
+			//calculate q update
+			self.memqval[self.memplay as usize] = (self.memreward + GAMMA * max) / (1.0 + GAMMA); //Q learning (divide to stay in [0,1] for sigmoid)
+			//train on the latest experience (q update)
+			nn.train(&[(self.memstate.clone(), self.memqval.clone())])
+				.halt_condition(HaltCondition::Epochs(EPOCHS_PER_STEP))
+				.log_interval(None)
+				//.log_interval(Some(2)) //debug
+				.momentum(MOM)
+				.rate(self.lr)
+				.go();
 		}
-		//field.print(); //debug
+		
+		//choose action by e-greedy
+		self.memqval = nn.run(&state);
+		self.memplay = PlayerAIQ::argmax(&self.memqval);
+		if !self.fixed && rng.gen::<f64>() < self.exploration //random exploration if agent should learn.
+		{
+			self.memplay = rng.gen::<u32>() % field.get_w();
+		}
+		
+		//perform action and set reward
+		self.memreward = 0.5;
+		let mut res = field.play(self.pid, self.memplay);
+		if !res { self.memqval[self.memplay as usize] = 0.1; } //move did not meet the rules, but learn anyway, even if another random move is made
+		
+		//random play when it was not rule conform, also modify q-value for it?
+		while !res //infinite if it is already draw!
+		{
+			self.memplay = rng.gen::<u32>() % field.get_w();
+			res = field.play(self.pid, self.memplay);
+		}
+		
+		//save state for next turn
+		self.memstate = state;
+		
+		//return
 		res
 	}
 	
 	#[allow(unused_variables)]
 	fn outcome(&mut self, field:&mut Field, state:i32)
 	{
+		//learn if not fixed
+		if !self.fixed
+		{
+			let nn = self.nn.as_mut().unwrap();
+			let op:i32 = if self.pid == 1 { 2 } else { 1 }; //other player
+			//set reward (if draw, reward already set properly)
+			if state == self.pid { self.memreward = 1.0; }
+			else if state == op { self.memreward = 0.0; }
+			//end-values of network should meet reward exactly
+			self.memqval[self.memplay as usize] = self.memreward;
+			//train NN
+			nn.train(&[(self.memstate.clone(), self.memqval.clone())])
+				.halt_condition(HaltCondition::Epochs(EPOCHS_PER_STEP))
+				.log_interval(None)
+				//.log_interval(Some(2)) //debug
+				.momentum(MOM)
+				.rate(self.lr)
+				.go();
+		}
+		
+		//parameters
 		self.games_played += 1;
 		self.lr = self.get_lr();
 		self.exploration = self.get_exploration();
 		self.targetnn = self.nn.clone();
+		self.memreward = -1.0;
 	}
 }
 

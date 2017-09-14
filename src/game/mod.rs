@@ -105,6 +105,8 @@ impl Game
 		self.field.reset();
 		let mut turn1:bool = self.startp == 1;
 		let mut state = 0;
+		p1.startp(self.startp as i32);
+		p2.startp(self.startp as i32);
 		
 		while state == 0
 		{
@@ -112,14 +114,13 @@ impl Game
 			{
 				if !p1.play(&mut self.field)
 				{ println!("Warning: player 1 did not play!"); }
-				turn1 = !turn1;
 			}
 			else
 			{
 				if !p2.play(&mut self.field)
 				{ println!("Warning: player 2 did not play!"); }
-				turn1 = !turn1;
 			}
+			turn1 = !turn1;
 			state = self.field.get_state();
 			//self.field.print(); //debug
 		}

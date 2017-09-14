@@ -4,19 +4,30 @@ use game::*;
 use std::time::Instant;
 
 
+#[allow(dead_code, unreachable_code)]
 fn main()
 {
-	train();
-	//test();
+	match 2
+	{
+		0 => test(),
+		1 => train(),
+		2 => {
+				for _ in 0..100
+				{
+					train();
+				}
+			},
+		_ => {}
+	}
 }
 
 
 #[allow(dead_code)]
 fn test()
 {
-	let num = 2; //number of games to play
+	let num = 1_000; //number of games to play
 	let gps = 1; //games per side
-	let p1 = PlayerType::IO;
+	let p1 = PlayerType::Minimax;
 	let p2 = PlayerType::AIQFixed;
 	
 	println!("Player X: {:?}", p1);
@@ -39,7 +50,7 @@ fn test()
 #[allow(dead_code)]
 fn train()
 {
-	let num = 100_000; //number of games to play
+	let num = 10_000; //number of games to play
 	let gps = 10; //games per side
 	let p1 = PlayerType::AIQFixed;
 	let p2 = PlayerType::AIQ;
