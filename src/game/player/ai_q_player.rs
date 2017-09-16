@@ -15,7 +15,7 @@ use super::super::field::Field;
 const GAMMA:f64 = 0.99; //q gamma (action-reward time difference high) //1.0?
 const LR:f64 = 0.5; //neural net learning rate
 const LR_DECAY:f64 = 200000f64; //NN learning rate decrease (half every DECAY games)
-const LR_MIN:f64 = 0.1; //minimum NN LR
+const LR_MIN:f64 = 0.05; //minimum NN LR
 const MOM:f64 = 0.1; //neural net momentum
 const EPOCHS_PER_STEP:u32 = 1; //epochs to learn from each turn
 const RND_PICK_START:f64 = 0.5; //exploration factor start
