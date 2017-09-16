@@ -222,7 +222,7 @@ impl Player for PlayerAIQ
 	#[allow(unused_variables)]
 	fn outcome(&mut self, field:&mut Field, state:i32)
 	{
-		//learn
+		{ //learn, scope for "let nn" shortcut
 		let nn = self.nn.as_mut().unwrap();
 		let op:i32 = if self.pid == 1 { 2 } else { 1 }; //other player
 		//set reward (if draw, reward already set properly)
@@ -238,6 +238,7 @@ impl Player for PlayerAIQ
 			.momentum(MOM)
 			.rate(self.lr)
 			.go();
+		}
 		
 		//parameters
 		self.games_played += 1;
