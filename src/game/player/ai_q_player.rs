@@ -1,4 +1,4 @@
-//! online reinforcement q learner (kind of double q and replay buffer learning)
+//! online reinforcement q learner (kind of double q)
 #![allow(dead_code)]
 
 extern crate rand;
@@ -174,8 +174,8 @@ impl Player for PlayerAIQ
 		//get current state formatted for the neural net
 		let state = PlayerAIQ::field_to_input(field, self.pid, self.startp);
 		
-		//learn if not first move (reward is already set, won/loose would be outcome) and NN not fixed
-		if !self.fixed && self.memreward != -1.0
+		//learn if not first move (reward is already set, won/loose would be outcome)
+		if self.memreward != -1.0
 		{
 			//get Q values for next state
 			let qval2 = targetnn.run(&state); //use double q learning target nn, to decouple action and value a bit
@@ -192,7 +192,7 @@ impl Player for PlayerAIQ
 				.go();
 		}
 		
-		//choose action by e-greedy
+		//choose action by e-greedy (no exploration when fixed AI version+)
 		self.memqval = nn.run(&state);
 		self.memplay = PlayerAIQ::argmax(&self.memqval);
 		if !self.fixed && rng.gen::<f64>() < self.exploration //random exploration if agent should learn.
@@ -205,8 +205,8 @@ impl Player for PlayerAIQ
 		let mut res = field.play(self.pid, self.memplay);
 		if !res { self.memqval[self.memplay as usize] = 0.1; } //move did not meet the rules, but learn anyway, even if another random move is made
 		
-		//random play when it was not rule conform, also modify q-value for it?
-		while !res //infinite if it is already draw!
+		//random play when it was not rule conform, also modify q-value for it
+		while !res //infinite if it is already draw! (cannot happen without bug)
 		{
 			self.memplay = rng.gen::<u32>() % field.get_w();
 			res = field.play(self.pid, self.memplay);
@@ -222,25 +222,22 @@ impl Player for PlayerAIQ
 	#[allow(unused_variables)]
 	fn outcome(&mut self, field:&mut Field, state:i32)
 	{
-		//learn if not fixed
-		if !self.fixed
-		{
-			let nn = self.nn.as_mut().unwrap();
-			let op:i32 = if self.pid == 1 { 2 } else { 1 }; //other player
-			//set reward (if draw, reward already set properly)
-			if state == self.pid { self.memreward = 1.0; }
-			else if state == op { self.memreward = 0.0; }
-			//end-values of network should meet reward exactly
-			self.memqval[self.memplay as usize] = self.memreward;
-			//train NN
-			nn.train(&[(self.memstate.clone(), self.memqval.clone())])
-				.halt_condition(HaltCondition::Epochs(EPOCHS_PER_STEP))
-				.log_interval(None)
-				//.log_interval(Some(2)) //debug
-				.momentum(MOM)
-				.rate(self.lr)
-				.go();
-		}
+		//learn
+		let nn = self.nn.as_mut().unwrap();
+		let op:i32 = if self.pid == 1 { 2 } else { 1 }; //other player
+		//set reward (if draw, reward already set properly)
+		if state == self.pid { self.memreward = 1.0; }
+		else if state == op { self.memreward = 0.0; }
+		//end-values of network should meet reward exactly
+		self.memqval[self.memplay as usize] = self.memreward;
+		//train NN
+		nn.train(&[(self.memstate.clone(), self.memqval.clone())])
+			.halt_condition(HaltCondition::Epochs(EPOCHS_PER_STEP))
+			.log_interval(None)
+			//.log_interval(Some(2)) //debug
+			.momentum(MOM)
+			.rate(self.lr)
+			.go();
 		
 		//parameters
 		self.games_played += 1;
@@ -255,7 +252,7 @@ impl Drop for PlayerAIQ
 {
 	fn drop(&mut self)
 	{
-		//write neural net to file, if it may has learned and was initialized
+		//write neural net to file, if it was allowed to learn and was initialized
 		if self.initialized && !self.fixed
 		{
 			let file = File::create(&self.filename);

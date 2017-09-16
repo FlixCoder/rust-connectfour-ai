@@ -14,12 +14,13 @@ fn main()
 		2 => train(),
 		3 => {
 				println!("Training:");
-				for _ in 0..100
+				for _ in 0..200
 				{
 					train();
 				}
 				println!("Testing:");
 				test();
+				test_io();
 			},
 		_ => {}
 	}
@@ -79,7 +80,7 @@ fn test()
 #[allow(dead_code)]
 fn train()
 {
-	let num = 10_000; //number of games to play
+	let num = 5_000; //number of games to play
 	let gps = 10; //games per side
 	let p1 = PlayerType::AIQFixed;
 	let p2 = PlayerType::AIQ;
