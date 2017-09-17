@@ -4,7 +4,7 @@ use game::*;
 use std::time::Instant;
 
 
-#[allow(dead_code, unreachable_code)]
+#[allow(unreachable_code)]
 fn main()
 {
 	match 3
