@@ -20,7 +20,7 @@ const MOM:f64 = 0.1; //neural net momentum
 const EPOCHS_PER_STEP:u32 = 1; //epochs to learn from each turn
 const RND_PICK_START:f64 = 0.5; //exploration factor start
 const RND_PICK_DEC:f64 = 250000f64; //random exploration decrease (half every DEC games)
-const RND_PICK_MIN:f64 = 0.05; //exploration rate minimum
+const RND_PICK_MIN:f64 = 0.01; //exploration rate minimum
 
 
 pub struct PlayerAIQ
