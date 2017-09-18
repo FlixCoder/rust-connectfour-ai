@@ -14,12 +14,12 @@ use super::super::field::Field;
 
 const GAMMA:f64 = 0.99; //q gamma (action-reward time difference high) //1.0?
 const LR:f64 = 0.5; //neural net learning rate
-const LR_DECAY:f64 = 200000f64; //NN learning rate decrease (half every DECAY games)
+const LR_DECAY:f64 = 100000f64; //NN learning rate decrease (half every DECAY games)
 const LR_MIN:f64 = 0.01; //minimum NN LR
 const MOM:f64 = 0.1; //neural net momentum
 const EPOCHS_PER_STEP:u32 = 1; //epochs to learn from each turn
 const RND_PICK_START:f64 = 0.5; //exploration factor start
-const RND_PICK_DEC:f64 = 250000f64; //random exploration decrease (half every DEC games)
+const RND_PICK_DEC:f64 = 100000f64; //random exploration decrease (half every DEC games)
 const RND_PICK_MIN:f64 = 0.01; //exploration rate minimum
 
 
