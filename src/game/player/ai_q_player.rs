@@ -3,16 +3,18 @@
 
 extern crate rand;
 extern crate nn;
+extern crate rustc_serialize;
 
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::io::prelude::*;
+use self::rustc_serialize::json;
 use self::rand::Rng;
 use self::nn::{NN, HaltCondition};
 use super::Player;
 use super::super::field::Field;
 
-const GAMMA:f64 = 0.99; //q gamma (action-reward time difference high)
+const GAMMA:f64 = 0.99; //q gamma (action-reward time difference high) (not 1.0, it terminates)
 const LR:f64 = 0.6; //neural net learning rate (deterministic -> high)
 const LR_DECAY:f64 = 0.1 / 10000f64; //NN learning rate decrease per game(s)
 const LR_MIN:f64 = 0.1; //minimum NN LR
@@ -36,7 +38,7 @@ pub struct PlayerAIQ
 	lr: f64,
 	exploration: f64,
 	startp: f64, //for NN input (1 = self starting, -1 = enemy starting)
-	exp_buffer: Vec<(Vec<f64>, usize, f64, Vec<f64>)>, //experience buffer for experience replay
+	exp_buffer: Option<Vec<(Vec<f64>, usize, f64, Vec<f64>)>>, //experience buffer for experience replay
 	memstate: Vec<f64>, //memorize state learning next turn
 	memqval: Vec<f64>, //same
 	memreward: f64, //same
@@ -49,7 +51,7 @@ impl PlayerAIQ
 	{
 		Box::new(PlayerAIQ { initialized: false, fixed: fix, filename: String::new(), pid: 0,
 				nn: None, targetnn: None, games_played: 0, lr: LR, exploration: RND_PICK_START,
-				startp: 0.0, exp_buffer: Vec::with_capacity(EXP_REP_SIZE),
+				startp: 0.0, exp_buffer: None,
 				memstate: Vec::new(), memqval: Vec::new(), memreward: -1.0, memplay: 0 })
 	}
 	
@@ -127,6 +129,7 @@ impl Player for PlayerAIQ
 			let n = field.get_size();
 			let w = field.get_w();
 			self.nn = Some(NN::new(&[2*n+w+1, 4*n, 2*n, 2*n, n, w])); //set size of NN layers here
+			self.exp_buffer = Some(Vec::with_capacity(EXP_REP_SIZE));
 			//games_played, exploration, lr already set
 		}
 		else
@@ -135,15 +138,18 @@ impl Player for PlayerAIQ
 			let mut reader = BufReader::new(file.unwrap());
 			let mut datas = String::new();
 			let mut nns = String::new();
+			let mut exps = String::new();
 			
 			let res1 = reader.read_line(&mut datas);
-			let res2 = reader.read_to_string(&mut nns);
-			if res1.is_err() || res2.is_err() { return false; }
+			let res2 = reader.read_line(&mut nns);
+			let res3 = reader.read_to_string(&mut exps);
+			if res1.is_err() || res2.is_err() || res3.is_err() { return false; }
 			
 			let res = datas.trim().parse::<u32>();
 			if res.is_err() { return false; }
 			self.games_played = res.unwrap();
 			self.nn = Some(NN::from_json(&nns));
+			self.exp_buffer = Some(json::decode(&exps).unwrap());
 			
 			self.lr = self.get_lr();
 			self.exploration = self.get_exploration();
@@ -173,6 +179,7 @@ impl Player for PlayerAIQ
 		let mut rng = rand::thread_rng();
 		let nn = self.nn.as_mut().unwrap();
 		let targetnn = self.targetnn.as_mut().unwrap();
+		let mut exp_buffer = self.exp_buffer.as_mut().unwrap();
 		
 		//get current state formatted for the neural net
 		let state = PlayerAIQ::field_to_input(field, self.pid, self.startp);
@@ -188,23 +195,23 @@ impl Player for PlayerAIQ
 			//train on experience replay and the latest experience (q update)
 			let mut trainingset = Vec::new();
 			//experience
-			if self.exp_buffer.len() > 0
+			if exp_buffer.len() > 0
 			{
 				for _ in 0..EXP_REP_BATCH
 				{ //EXP_REP_BATCH random experiences to replay
-					let repindex = rng.gen::<usize>() % self.exp_buffer.len();
-					let mut qval = nn.run(&self.exp_buffer[repindex].0); //.0 = state 1
-					if self.exp_buffer[repindex].2 == 0.0 || self.exp_buffer[repindex].2 == 1.0 //.2 = reward
+					let repindex = rng.gen::<usize>() % exp_buffer.len();
+					let mut qval = nn.run(&exp_buffer[repindex].0); //.0 = state 1
+					if exp_buffer[repindex].2 == 0.0 || exp_buffer[repindex].2 == 1.0 //.2 = reward
 					{
-						qval[self.exp_buffer[repindex].1] = self.exp_buffer[repindex].2; //.1 = action, .2 = reward
+						qval[exp_buffer[repindex].1] = exp_buffer[repindex].2; //.1 = action, .2 = reward
 					}
 					else
 					{
-						let qval2 = targetnn.run(&self.exp_buffer[repindex].3); //.3 = state 2
+						let qval2 = targetnn.run(&exp_buffer[repindex].3); //.3 = state 2
 						let max = qval2[PlayerAIQ::argmax(&qval2) as usize];
-						qval[self.exp_buffer[repindex].1] = (self.exp_buffer[repindex].2 + GAMMA * max) / (1.0 + GAMMA); //.1 = action, .2 = reward
+						qval[exp_buffer[repindex].1] = (exp_buffer[repindex].2 + GAMMA * max) / (1.0 + GAMMA); //.1 = action, .2 = reward
 					}
-					trainingset.push((self.exp_buffer[repindex].0.clone(), qval));
+					trainingset.push((exp_buffer[repindex].0.clone(), qval));
 				}
 			}
 			//latest
@@ -217,12 +224,12 @@ impl Player for PlayerAIQ
 				.rate(self.lr)
 				.go();
 			//save latest as experience
-			if self.exp_buffer.len() >= EXP_REP_SIZE
+			if exp_buffer.len() >= EXP_REP_SIZE
 			{
-				self.exp_buffer.swap_remove(0); //remove first element in O(1)
+				exp_buffer.remove(0); //remove first element
 			}
 			let (state1, _) = trainingset.pop().unwrap();
-			self.exp_buffer.push((state1, self.memplay as usize, self.memreward, state.clone())); //state1 = memstate (so state to choose action), state = current state (so next state)
+			exp_buffer.push((state1, self.memplay as usize, self.memreward, state.clone())); //state1 = memstate (so state to choose action), state = current state (so next state)
 		}
 		
 		//choose action by e-greedy (no exploration when fixed AI version+)
@@ -258,33 +265,37 @@ impl Player for PlayerAIQ
 		{ //learn, scope for "let nn" and "let targetnn" shortcut
 			let nn = self.nn.as_mut().unwrap();
 			let targetnn = self.targetnn.as_mut().unwrap();
+			let mut exp_buffer = self.exp_buffer.as_mut().unwrap();
 			let mut rng = rand::thread_rng();
 			let op:i32 = if self.pid == 1 { 2 } else { 1 }; //other player
+			
 			//set reward (if draw, reward already set properly)
 			if state == self.pid { self.memreward = 1.0; }
 			else if state == op { self.memreward = 0.0; }
+			
 			//end-values of network should meet reward exactly
 			self.memqval[self.memplay as usize] = self.memreward;
+			
 			//train on experience replay and the latest experience (q update)
 			let mut trainingset = Vec::new();
 			//experience
-			if self.exp_buffer.len() > 0
+			if exp_buffer.len() > 0
 			{
 				for _ in 0..EXP_REP_BATCH
 				{ //EXP_REP_BATCH experiences to replay
-					let repindex = rng.gen::<usize>() % self.exp_buffer.len();
-					let mut qval = nn.run(&self.exp_buffer[repindex].0); //.0 = state 1
-					if self.exp_buffer[repindex].2 == 0.0 || self.exp_buffer[repindex].2 == 1.0 //.2 = reward
+					let repindex = rng.gen::<usize>() % exp_buffer.len();
+					let mut qval = nn.run(&exp_buffer[repindex].0); //.0 = state 1
+					if exp_buffer[repindex].2 == 0.0 || exp_buffer[repindex].2 == 1.0 //.2 = reward
 					{
-						qval[self.exp_buffer[repindex].1] = self.exp_buffer[repindex].2; //.1 = action, .2 = reward
+						qval[exp_buffer[repindex].1] = exp_buffer[repindex].2; //.1 = action, .2 = reward
 					}
 					else
 					{
-						let qval2 = targetnn.run(&self.exp_buffer[repindex].3); //.3 = state 2
+						let qval2 = targetnn.run(&exp_buffer[repindex].3); //.3 = state 2
 						let max = qval2[PlayerAIQ::argmax(&qval2) as usize];
-						qval[self.exp_buffer[repindex].1] = (self.exp_buffer[repindex].2 + GAMMA * max) / (1.0 + GAMMA); //.1 = action, .2 = reward
+						qval[exp_buffer[repindex].1] = (exp_buffer[repindex].2 + GAMMA * max) / (1.0 + GAMMA); //.1 = action, .2 = reward
 					}
-					trainingset.push((self.exp_buffer[repindex].0.clone(), qval));
+					trainingset.push((exp_buffer[repindex].0.clone(), qval));
 				}
 			}
 			//latest
@@ -299,12 +310,12 @@ impl Player for PlayerAIQ
 			//save latest as experience if not draw (would cause difficulties and is not as important)
 			if self.memreward != 0.5
 			{
-				if self.exp_buffer.len() >= EXP_REP_SIZE
+				if exp_buffer.len() >= EXP_REP_SIZE
 				{
-					self.exp_buffer.swap_remove(0); //remove first element in O(1)
+					exp_buffer.remove(0); //remove first element
 				}
 				let (state1, _) = trainingset.pop().unwrap();
-				self.exp_buffer.push((state1, self.memplay as usize, self.memreward, Vec::new())); //state1 = memstate (so state to choose action), new vec for empty end state
+				exp_buffer.push((state1, self.memplay as usize, self.memreward, Vec::new())); //state1 = memstate (so state to choose action), new vec for empty end state
 			}
 		}
 		
@@ -329,8 +340,9 @@ impl Drop for PlayerAIQ
 			let mut writer = BufWriter::new(file.unwrap());
 			
 			let res1 = writeln!(&mut writer, "{}", self.games_played);
-			let res2 = write!(&mut writer, "{}", self.nn.as_mut().unwrap().to_json());
-			if res1.is_err() || res2.is_err() { println!("Warning: There was an error while writing AIQ NN file!"); return; }
+			let res2 = writeln!(&mut writer, "{}", self.nn.as_mut().unwrap().to_json());
+			let res3 = write!(&mut writer, "{}", json::encode(self.exp_buffer.as_mut().unwrap()).unwrap());
+			if res1.is_err() || res2.is_err() || res3.is_err() { println!("Warning: There was an error while writing AIQ NN file!"); return; }
 		}
 	}
 }

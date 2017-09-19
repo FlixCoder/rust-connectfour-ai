@@ -4,8 +4,9 @@ version = "0.1.0"
 authors = ["FlixCoder"]
 
 [dependencies]
-rand = "0.3.15"
+rand = "0.3.*"
 nn = { path = "../nn" }  #https://github.com/jackm321/RustNN
+rustc-serialize = "0.3.*"
 
 
 [profile.dev]
