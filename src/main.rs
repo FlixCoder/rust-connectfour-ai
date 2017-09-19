@@ -14,13 +14,14 @@ fn main()
 		2 => train(),
 		3 => {
 				println!("Training:");
-				for i in 0..5
+				for i in 0..20
 				{
-					println!("Training {}:", i);
+					println!("Training {}:", i+1);
 					train();
-					println!("Testing {}:", i);
+					println!("Test {}:", i+1);
 					test();
 				}
+				println!("Testing:");
 				test_io();
 			},
 		_ => {}

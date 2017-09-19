@@ -16,14 +16,15 @@ use super::super::field::Field;
 
 const GAMMA:f64 = 0.99; //q gamma (action-reward time difference high) (not 1.0, it terminates)
 const LR:f64 = 0.6; //neural net learning rate (deterministic -> high)
-const LR_DECAY:f64 = 0.1 / 10000f64; //NN learning rate decrease per game(s)
-const LR_MIN:f64 = 0.1; //minimum NN LR
-const MOM:f64 = 0.1; //neural net momentum
+const LR_DECAY:f64 = 0.01 / 1000f64; //NN learning rate decrease per game(s)
+const LR_MIN:f64 = 0.01; //minimum NN LR
+const MOM:f64 = 0.2; //neural net momentum
 const RND_PICK_START:f64 = 0.5; //exploration factor start
-const RND_PICK_DEC:f64 = 100000f64; //random exploration decrease (half every DEC games)
+const RND_PICK_DEC:f64 = 10000f64; //random exploration decrease (half every DEC games)
 const RND_PICK_MIN:f64 = 0.01; //exploration rate minimum
 const EXP_REP_SIZE:usize = 10000; //size of buffer for experience replay
-const EXP_REP_BATCH:u32 = 15; //batch size for replay training
+const EXP_REP_BATCH:u32 = 9; //batch size for replay training
+const EPOCHS:u32 = 1; //NN training epochs for a mini batch
 
 
 pub struct PlayerAIQ
@@ -217,7 +218,7 @@ impl Player for PlayerAIQ
 			//latest
 			trainingset.push((self.memstate.clone(), self.memqval.clone()));
 			nn.train(&trainingset)
-				.halt_condition(HaltCondition::Epochs(1))
+				.halt_condition(HaltCondition::Epochs(EPOCHS))
 				.log_interval(None)
 				//.log_interval(Some(2)) //debug
 				.momentum(MOM)
@@ -301,7 +302,7 @@ impl Player for PlayerAIQ
 			//latest
 			trainingset.push((self.memstate.clone(), self.memqval.clone()));
 			nn.train(&trainingset)
-				.halt_condition(HaltCondition::Epochs(1))
+				.halt_condition(HaltCondition::Epochs(EPOCHS))
 				.log_interval(None)
 				//.log_interval(Some(2)) //debug
 				.momentum(MOM)
