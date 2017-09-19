@@ -7,22 +7,20 @@ use std::time::Instant;
 #[allow(unreachable_code)]
 fn main()
 {
-	train();
-	test();
-	match 4
+	match 3
 	{
 		0 => test_io(),
 		1 => test(),
 		2 => train(),
 		3 => {
 				println!("Training:");
-				for i in 0..10
+				for i in 0..5
 				{
 					println!("Training {}:", i);
 					train();
+					println!("Testing {}:", i);
+					test();
 				}
-				println!("Testing:");
-				test();
 				test_io();
 			},
 		_ => {}
