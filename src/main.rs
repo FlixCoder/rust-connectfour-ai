@@ -7,7 +7,9 @@ use std::time::Instant;
 #[allow(unreachable_code)]
 fn main()
 {
-	match 3
+	train();
+	test();
+	match 4
 	{
 		0 => test_io(),
 		1 => test(),

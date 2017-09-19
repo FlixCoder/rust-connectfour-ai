@@ -12,16 +12,16 @@ use self::nn::{NN, HaltCondition};
 use super::Player;
 use super::super::field::Field;
 
-const GAMMA:f64 = 0.99; //q gamma (action-reward time difference high) //1.0?
-const LR:f64 = 0.5; //neural net learning rate
-const LR_DECAY:f64 = 0.00001f64; //NN learning rate decrease per game
-const LR_MIN:f64 = 0.05; //minimum NN LR
+const GAMMA:f64 = 0.99; //q gamma (action-reward time difference high)
+const LR:f64 = 0.6; //neural net learning rate (deterministic -> high)
+const LR_DECAY:f64 = 0.1 / 10000f64; //NN learning rate decrease per game(s)
+const LR_MIN:f64 = 0.1; //minimum NN LR
 const MOM:f64 = 0.1; //neural net momentum
 const RND_PICK_START:f64 = 0.5; //exploration factor start
 const RND_PICK_DEC:f64 = 100000f64; //random exploration decrease (half every DEC games)
 const RND_PICK_MIN:f64 = 0.01; //exploration rate minimum
 const EXP_REP_SIZE:usize = 10000; //size of buffer for experience replay
-const EXP_REP_BATCH:u32 = 10; //batch size for replay training
+const EXP_REP_BATCH:u32 = 15; //batch size for replay training
 
 
 pub struct PlayerAIQ
@@ -60,7 +60,7 @@ impl PlayerAIQ
 	
 	fn get_lr(&self) -> f64
 	{
-		LR_MIN.max(LR - LR_DECAY * self.games_played as f64))
+		LR_MIN.max(LR - LR_DECAY * self.games_played as f64)
 	}
 	
 	fn argmax(slice:&[f64]) -> u32
@@ -191,7 +191,7 @@ impl Player for PlayerAIQ
 			if self.exp_buffer.len() > 0
 			{
 				for _ in 0..EXP_REP_BATCH
-				{
+				{ //EXP_REP_BATCH random experiences to replay
 					let repindex = rng.gen::<usize>() % self.exp_buffer.len();
 					let mut qval = nn.run(&self.exp_buffer[repindex].0); //.0 = state 1
 					if self.exp_buffer[repindex].2 == 0.0 || self.exp_buffer[repindex].2 == 1.0 //.2 = reward
@@ -271,7 +271,7 @@ impl Player for PlayerAIQ
 			if self.exp_buffer.len() > 0
 			{
 				for _ in 0..EXP_REP_BATCH
-				{
+				{ //EXP_REP_BATCH experiences to replay
 					let repindex = rng.gen::<usize>() % self.exp_buffer.len();
 					let mut qval = nn.run(&self.exp_buffer[repindex].0); //.0 = state 1
 					if self.exp_buffer[repindex].2 == 0.0 || self.exp_buffer[repindex].2 == 1.0 //.2 = reward
