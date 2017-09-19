@@ -14,8 +14,9 @@ fn main()
 		2 => train(),
 		3 => {
 				println!("Training:");
-				for _ in 0..100
+				for i in 0..10
 				{
+					println!("Training {}:", i);
 					train();
 				}
 				println!("Testing:");
