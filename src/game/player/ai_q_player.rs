@@ -14,7 +14,7 @@ use super::super::field::Field;
 
 const GAMMA:f64 = 0.99; //q gamma (action-reward time difference high) //1.0?
 const LR:f64 = 0.5; //neural net learning rate
-const LR_DECAY:f64 = 10000f64; //NN learning rate decrease (half every DECAY games)
+const LR_DECAY:f64 = 0.00001f64; //NN learning rate decrease per game
 const LR_MIN:f64 = 0.05; //minimum NN LR
 const MOM:f64 = 0.1; //neural net momentum
 const RND_PICK_START:f64 = 0.5; //exploration factor start
@@ -60,7 +60,7 @@ impl PlayerAIQ
 	
 	fn get_lr(&self) -> f64
 	{
-		LR_MIN.max(LR * (2f64).powf(-(self.games_played as f64)/LR_DECAY))
+		LR_MIN.max(LR - LR_DECAY * self.games_played as f64))
 	}
 	
 	fn argmax(slice:&[f64]) -> u32
@@ -126,7 +126,7 @@ impl Player for PlayerAIQ
 			//create new neural net, as it could not be loaded
 			let n = field.get_size();
 			let w = field.get_w();
-			self.nn = Some(NN::new(&[2*n+w+1, 4*n, 2*n, n, n, n/2, w])); //set size of NN layers here
+			self.nn = Some(NN::new(&[2*n+w+1, 4*n, 2*n, 2*n, n, w])); //set size of NN layers here
 			//games_played, exploration, lr already set
 		}
 		else
