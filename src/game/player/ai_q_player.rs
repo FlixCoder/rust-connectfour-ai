@@ -186,7 +186,7 @@ impl Player for PlayerAIQ
 			//calculate q update
 			self.memqval[self.memplay as usize] = (self.memreward + GAMMA * max) / (1.0 + GAMMA); //Q learning (divide to stay in [0,1] for sigmoid)
 			//train on experience replay and the latest experience (q update)
-			let trainingset = Vec::new();
+			let mut trainingset = Vec::new();
 			//experience
 			if self.exp_buffer.len() > 0
 			{
@@ -204,7 +204,7 @@ impl Player for PlayerAIQ
 						let max = qval2[PlayerAIQ::argmax(&qval2) as usize];
 						qval[self.exp_buffer[repindex].1] = (self.exp_buffer[repindex].2 + GAMMA * max) / (1.0 + GAMMA); //.1 = action, .2 = reward
 					}
-					trainingset.push(self.exp_buffer[repindex].0.clone(), qval);
+					trainingset.push((self.exp_buffer[repindex].0.clone(), qval));
 				}
 			}
 			//latest
@@ -258,6 +258,7 @@ impl Player for PlayerAIQ
 		{ //learn, scope for "let nn" and "let targetnn" shortcut
 			let nn = self.nn.as_mut().unwrap();
 			let targetnn = self.targetnn.as_mut().unwrap();
+			let mut rng = rand::thread_rng();
 			let op:i32 = if self.pid == 1 { 2 } else { 1 }; //other player
 			//set reward (if draw, reward already set properly)
 			if state == self.pid { self.memreward = 1.0; }
@@ -265,7 +266,7 @@ impl Player for PlayerAIQ
 			//end-values of network should meet reward exactly
 			self.memqval[self.memplay as usize] = self.memreward;
 			//train on experience replay and the latest experience (q update)
-			let trainingset = Vec::new();
+			let mut trainingset = Vec::new();
 			//experience
 			if self.exp_buffer.len() > 0
 			{
@@ -283,7 +284,7 @@ impl Player for PlayerAIQ
 						let max = qval2[PlayerAIQ::argmax(&qval2) as usize];
 						qval[self.exp_buffer[repindex].1] = (self.exp_buffer[repindex].2 + GAMMA * max) / (1.0 + GAMMA); //.1 = action, .2 = reward
 					}
-					trainingset.push(self.exp_buffer[repindex].0.clone(), qval);
+					trainingset.push((self.exp_buffer[repindex].0.clone(), qval));
 				}
 			}
 			//latest
