@@ -15,13 +15,13 @@ use super::Player;
 use super::super::field::Field;
 
 const GAMMA:f64 = 0.99; //q gamma (action-reward time difference high) (not 1.0, it terminates)
-const LR:f64 = 0.1; //neural net learning rate (deterministic -> high)
-const LR_DECAY:f64 = 0.001 / 200f64; //NN learning rate decrease per game(s)
+const LR:f64 = 0.2; //neural net learning rate (deterministic -> high)
+const LR_DECAY:f64 = 0.1 / 50000f64; //NN learning rate decrease per game(s)
 const LR_MIN:f64 = 0.001; //minimum NN LR
 const MOM:f64 = 0.2; //neural net momentum
 const RND_PICK_START:f64 = 0.5; //exploration factor start
-const RND_PICK_DEC:f64 = 10000f64; //random exploration decrease (half every DEC games)
-const RND_PICK_MIN:f64 = 0.02; //exploration rate minimum
+const RND_PICK_DEC:f64 = 20000f64; //random exploration decrease (half every DEC games)
+const RND_PICK_MIN:f64 = 0.025; //exploration rate minimum
 const EXP_REP_SIZE:usize = 10000; //size of buffer for experience replay
 const EXP_REP_BATCH:u32 = 9; //batch size for replay training
 const EPOCHS:u32 = 1; //NN training epochs for a mini batch
