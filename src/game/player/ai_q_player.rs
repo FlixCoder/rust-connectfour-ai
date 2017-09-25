@@ -103,7 +103,7 @@ impl PlayerAIQ
 				match field.get_state()
 				{
 					-1 | 0 => input.push(0f64),
-					_ => input.push(1f64}),
+					_ => input.push(1f64),
 				}
 				field.undo();
 			}
