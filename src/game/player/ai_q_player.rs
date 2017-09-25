@@ -129,7 +129,7 @@ impl Player for PlayerAIQ
 			//create new neural net, as it could not be loaded
 			let n = field.get_size();
 			let w = field.get_w();
-			self.nn = Some(NN::new(&[2*n+w+1, 4*n, 2*n, 2*n, n, w])); //set size of NN layers here
+			self.nn = Some(NN::new(&[2*n+w+1, n, w])); //set size of NN layers here
 			self.exp_buffer = Some(Vec::with_capacity(EXP_REP_SIZE));
 			//games_played, exploration, lr already set
 		}
