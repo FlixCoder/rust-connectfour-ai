@@ -97,13 +97,13 @@ impl PlayerAIQ
 			}
 		}
 		for x in 0..field.get_w()
-		{ //1 node for every column: 1 own win, -1 enemy win, 0 none (which consistent order of the nodes does not matter, fully connected)
+		{ //1 node for every column: 1 a player can win, 0 none (which consistent order of the nodes does not matter, fully connected)
 			if field.play(p, x)
 			{ //valid play
 				match field.get_state()
 				{
 					-1 | 0 => input.push(0f64),
-					pid => input.push(if pid == p {1f64} else {-1f64}),
+					_ => input.push(1f64}),
 				}
 				field.undo();
 			}
@@ -129,7 +129,7 @@ impl Player for PlayerAIQ
 			//create new neural net, as it could not be loaded
 			let n = field.get_size();
 			let w = field.get_w();
-			self.nn = Some(NN::new(&[2*n+w+1, n, w])); //set size of NN layers here
+			self.nn = Some(NN::new(&[2*n+w+1, w])); //set size of NN layers here
 			self.exp_buffer = Some(Vec::with_capacity(EXP_REP_SIZE));
 			//games_played, exploration, lr already set
 		}
