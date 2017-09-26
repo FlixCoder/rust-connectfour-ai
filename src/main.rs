@@ -33,7 +33,7 @@ fn main()
 #[allow(dead_code)]
 fn play()
 {
-	let num = 2; //number of games to play
+	let num = 4; //number of games to play
 	let gps = 1; //games per side
 	let p1 = PlayerType::IO;
 	let p2 = PlayerType::AIQ;
