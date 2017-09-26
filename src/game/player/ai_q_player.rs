@@ -101,9 +101,18 @@ impl PlayerAIQ
 			if field.play(p, x)
 			{ //valid play
 				match field.get_state()
-				{
-					-1 | 0 => input.push(0f64),
-					_ => input.push(1f64),
+				{ //if game was over before play (does not happen without bug), it looks like we win, even if we don't
+					-1 | 0 =>
+						{
+							field.undo();
+							field.play(op, x);
+							match field.get_state()
+							{
+								-1 | 0 => input.push(0f64), //nobody can win
+								_ => input.push(1f64), //enemy can win
+							}
+						},
+					_ => input.push(1f64), //we can win
 				}
 				field.undo();
 			}
@@ -129,7 +138,7 @@ impl Player for PlayerAIQ
 			//create new neural net, as it could not be loaded
 			let n = field.get_size();
 			let w = field.get_w();
-			self.nn = Some(NN::new(&[2*n+w+1, w])); //set size of NN layers here
+			self.nn = Some(NN::new(&[2*n+w+1, n, w])); //set size of NN layers here
 			self.exp_buffer = Some(Vec::with_capacity(EXP_REP_SIZE));
 			//games_played, exploration, lr already set
 		}
