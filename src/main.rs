@@ -21,7 +21,7 @@ fn main()
 					println!("Training {}:", i+1);
 					train();
 					println!("Test {}:", i+1);
-					test();
+					test_minimax();
 				}
 				println!("Testing:");
 				test_io();
