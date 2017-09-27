@@ -17,13 +17,13 @@ use super::super::field::Field;
 const GAMMA:f64 = 0.99; //q gamma (action-reward time difference high) (not 1.0, it terminates)
 const LR:f64 = 0.2; //neural net learning rate (deterministic -> high)
 const LR_DECAY:f64 = 0.1 / 50000f64; //NN learning rate decrease per game(s)
-const LR_MIN:f64 = 0.01; //minimum NN LR
-const MOM:f64 = 0.2; //neural net momentum
+const LR_MIN:f64 = 0.001; //minimum NN LR
+const MOM:f64 = 0.5; //neural net momentum
 const RND_PICK_START:f64 = 0.5; //exploration factor start
 const RND_PICK_DEC:f64 = 20000f64; //random exploration decrease (half every DEC games)
 const RND_PICK_MIN:f64 = 0.05; //exploration rate minimum
-const EXP_REP_SIZE:usize = 10000; //size of buffer for experience replay
-const EXP_REP_BATCH:u32 = 9; //batch size for replay training
+const EXP_REP_SIZE:usize = 20000; //size of buffer for experience replay
+const EXP_REP_BATCH:u32 = 14; //batch size for replay training
 const EPOCHS:u32 = 1; //NN training epochs for a mini batch
 
 
@@ -138,7 +138,7 @@ impl Player for PlayerAIQ
 			//create new neural net, as it could not be loaded
 			let n = field.get_size();
 			let w = field.get_w();
-			self.nn = Some(NN::new(&[2*n+w+1, 4*n, 2*n, n, w])); //set size of NN layers here
+			self.nn = Some(NN::new(&[2*n+w+1, 4*n, 2*n, n, n, n, w])); //set size of NN layers here
 			self.exp_buffer = Some(Vec::with_capacity(EXP_REP_SIZE));
 			//games_played, exploration, lr already set
 		}
@@ -242,10 +242,10 @@ impl Player for PlayerAIQ
 			exp_buffer.push((state1, self.memplay as usize, self.memreward, state.clone())); //state1 = memstate (so state to choose action), state = current state (so next state)
 		}
 		
-		//choose action by e-greedy (no exploration when fixed AI version+)
+		//choose action by e-greedy
 		self.memqval = nn.run(&state);
 		self.memplay = PlayerAIQ::argmax(&self.memqval);
-		if !self.fixed && rng.gen::<f64>() < self.exploration //random exploration if agent should learn.
+		if rng.gen::<f64>() < self.exploration //random exploration if agent should learn.
 		{
 			self.memplay = rng.gen::<u32>() % field.get_w();
 		}
