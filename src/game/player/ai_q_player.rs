@@ -25,6 +25,7 @@ const RND_PICK_MIN:f64 = 0.05; //exploration rate minimum
 const EXP_REP_SIZE:usize = 20000; //size of buffer for experience replay
 const EXP_REP_BATCH:u32 = 14; //batch size for replay training
 const EPOCHS:u32 = 1; //NN training epochs for a mini batch
+const FIXED_EXPLORATION:bool = true; //should the fixed agent explore using rand_pick?
 
 
 pub struct PlayerAIQ
@@ -194,8 +195,8 @@ impl Player for PlayerAIQ
 		//get current state formatted for the neural net
 		let state = PlayerAIQ::field_to_input(field, self.pid, self.startp);
 		
-		//learn if not first move (reward is already set, won/loose would be outcome)
-		if self.memreward != -1.0
+		//learn if not fixed and not first move (reward is already set, won/loose would be outcome)
+		if !self.fixed && self.memreward != -1.0
 		{
 			//get Q values for next state
 			let qval2 = targetnn.run(&state); //use double q learning target nn, to decouple action and value a bit
@@ -245,7 +246,7 @@ impl Player for PlayerAIQ
 		//choose action by e-greedy
 		self.memqval = nn.run(&state);
 		self.memplay = PlayerAIQ::argmax(&self.memqval);
-		if rng.gen::<f64>() < self.exploration //random exploration if agent should learn.
+		if (FIXED_EXPLORATION || !self.fixed) && rng.gen::<f64>() < self.exploration //random exploration if it should
 		{
 			self.memplay = rng.gen::<u32>() % field.get_w();
 		}
@@ -272,7 +273,8 @@ impl Player for PlayerAIQ
 	#[allow(unused_variables)]
 	fn outcome(&mut self, field:&mut Field, state:i32)
 	{
-		{ //learn, scope for "let nn" and "let targetnn" shortcut
+		if !self.fixed
+		{ //learn if not fixed (scope needed for "let nn" and "let targetnn" shortcut)
 			let nn = self.nn.as_mut().unwrap();
 			let targetnn = self.targetnn.as_mut().unwrap();
 			let mut exp_buffer = self.exp_buffer.as_mut().unwrap();
