@@ -18,14 +18,13 @@ const GAMMA:f64 = 0.99; //q gamma (action-reward time difference high) (not 1.0,
 const LR:f64 = 0.2; //neural net learning rate (deterministic -> high)
 const LR_DECAY:f64 = 0.1 / 50000f64; //NN learning rate decrease per game(s)
 const LR_MIN:f64 = 0.001; //minimum NN LR
-const MOM:f64 = 0.1; //neural net momentum
+const MOM:f64 = 0.0; //neural net momentum
 const RND_PICK_START:f64 = 0.5; //exploration factor start
 const RND_PICK_DEC:f64 = 20000f64; //random exploration decrease (half every DEC games)
 const RND_PICK_MIN:f64 = 0.05; //exploration rate minimum
 const EXP_REP_SIZE:usize = 20000; //size of buffer for experience replay
 const EXP_REP_BATCH:u32 = 14; //batch size for replay training
 const EPOCHS:u32 = 1; //NN training epochs for a mini batch
-const FIXED_EXPLORATION:bool = true; //should the fixed agent explore using rand_pick?
 
 
 pub struct PlayerAIQ
@@ -39,6 +38,7 @@ pub struct PlayerAIQ
 	games_played: u32,
 	lr: f64,
 	exploration: f64,
+	explore: bool, //should the agent explore randomly sometimes?
 	startp: f64, //for NN input (1 = self starting, -1 = enemy starting)
 	exp_buffer: Option<Vec<(Vec<f64>, usize, f64, Vec<f64>)>>, //experience buffer for experience replay
 	memstate: Vec<f64>, //memorize state learning next turn
@@ -49,11 +49,11 @@ pub struct PlayerAIQ
 
 impl PlayerAIQ
 {
-	pub fn new(fix:bool) -> Box<PlayerAIQ>
+	pub fn new(fix:bool, exp:bool) -> Box<PlayerAIQ>
 	{
 		Box::new(PlayerAIQ { initialized: false, fixed: fix, filename: String::new(), pid: 0,
 				nn: None, targetnn: None, games_played: 0, lr: LR, exploration: RND_PICK_START,
-				startp: 0.0, exp_buffer: None,
+				explore: exp, startp: 0.0, exp_buffer: None,
 				memstate: Vec::new(), memqval: Vec::new(), memreward: -1.0, memplay: 0 })
 	}
 	
@@ -82,12 +82,14 @@ impl PlayerAIQ
 		x
 	}
 	
+	//field and extra info
 	fn field_to_input(field:&mut Field, p:i32, startp:f64) -> Vec<f64>
 	{
 		let op:i32 = if p == 1 { 2 } else { 1 }; //other player
 		let mut input:Vec<f64> = Vec::with_capacity((2*field.get_size() + field.get_w() + 1) as usize);
+		//2 nodes for every square: -1 enemy, 0 free, 1 own; 0 square will not be reached with one move, 1 square can be directly filled
 		for (i, val) in field.get_field().iter().enumerate()
-		{ //2 nodes for every square: -1 enemy, 0 free, 1 own; 0 square will not be reached with one move, 1 square can be directly filled
+		{
 			if *val == p { input.push(1f64); input.push(0f64); }
 			else if *val == op { input.push(-1f64); input.push(0f64); }
 			else
@@ -97,8 +99,9 @@ impl PlayerAIQ
 				else { input.push(1f64); }
 			}
 		}
+		//1 node for every column: 1 a player can win, 0 none (which consistent order of the nodes does not matter, fully connected)
 		for x in 0..field.get_w()
-		{ //1 node for every column: 1 a player can win, 0 none (which consistent order of the nodes does not matter, fully connected)
+		{
 			if field.play(p, x)
 			{ //valid play
 				match field.get_state()
@@ -124,6 +127,26 @@ impl PlayerAIQ
 		//return
 		input
 	}
+	
+	//raw field
+	/*fn field_to_input(field:&mut Field, p:i32, startp:f64) -> Vec<f64>
+	{
+		let op:i32 = if p == 1 { 2 } else { 1 }; //other player
+		let mut input:Vec<f64> = Vec::with_capacity((field.get_size() + 2) as usize);
+		//1 node always 1.0 to replace bias hopefully
+		input.push(1.0);
+		//1 nodes for every square: -1 enemy, 0 free, 1 own
+		for val in field.get_field().iter()
+		{
+			if *val == p { input.push(1f64); }
+			else if *val == op { input.push(-1f64); }
+			else { input.push(0f64); } //empty square
+		}
+		//1 node for starting player (-1 enemy, 1 self)
+		input.push(startp);
+		//return
+		input
+	}*/
 }
 
 impl Player for PlayerAIQ
@@ -246,7 +269,7 @@ impl Player for PlayerAIQ
 		//choose action by e-greedy
 		self.memqval = nn.run(&state);
 		self.memplay = PlayerAIQ::argmax(&self.memqval);
-		if (FIXED_EXPLORATION || !self.fixed) && rng.gen::<f64>() < self.exploration //random exploration if it should
+		if self.explore && rng.gen::<f64>() < self.exploration //random exploration if it should
 		{
 			self.memplay = rng.gen::<u32>() % field.get_w();
 		}

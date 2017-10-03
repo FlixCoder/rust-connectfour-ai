@@ -14,7 +14,7 @@ use self::player::ai_value_player::PlayerAIValue;
 
 
 #[derive(Debug)]
-pub enum PlayerType {None, IO, Random, AIQ, AIQFixed, Minimax, AIQOff, AIQOffFixed, AIValue}
+pub enum PlayerType {None, IO, Random, AIQ, AIQFixed, AIQPlay, Minimax, AIQOff, AIQOffFixed, AIValue}
 
 pub struct Game
 {
@@ -31,20 +31,26 @@ impl Game
 		Game { field: Field::new(7, 6), p1: None, p2: None, startp: 1 }
 	}
 	
-	pub fn set_player1(&mut self, p:PlayerType) -> bool
+	fn map_player(p:PlayerType) -> Option<Box<Player>>
 	{
 		match p
 		{
-			PlayerType::None => self.p1 = None,
-			PlayerType::IO => self.p1 = Some(PlayerIO::new()),
-			PlayerType::Random => self.p1 = Some(PlayerRandom::new()),
-			PlayerType::AIQ => self.p1 = Some(PlayerAIQ::new(false)),
-			PlayerType::AIQFixed => self.p1 = Some(PlayerAIQ::new(true)),
-			PlayerType::Minimax => self.p1 = Some(PlayerMinimax::new()),
-			PlayerType::AIQOff => self.p1 = Some(PlayerAIQOff::new(false)),
-			PlayerType::AIQOffFixed => self.p1 = Some(PlayerAIQOff::new(true)),
-			PlayerType::AIValue => self.p1 = Some(PlayerAIValue::new()),
+			PlayerType::None => None,
+			PlayerType::IO => Some(PlayerIO::new()),
+			PlayerType::Random => Some(PlayerRandom::new()),
+			PlayerType::AIQ => Some(PlayerAIQ::new(false, true)),
+			PlayerType::AIQFixed => Some(PlayerAIQ::new(true, true)),
+			PlayerType::AIQPlay => Some(PlayerAIQ::new(true, false)),
+			PlayerType::Minimax => Some(PlayerMinimax::new()),
+			PlayerType::AIQOff => Some(PlayerAIQOff::new(false)),
+			PlayerType::AIQOffFixed => Some(PlayerAIQOff::new(true)),
+			PlayerType::AIValue => Some(PlayerAIValue::new()),
 		}
+	}
+	
+	pub fn set_player1(&mut self, p:PlayerType) -> bool
+	{
+		self.p1 = Game::map_player(p);
 		
 		if self.p1.is_some()
 		{
@@ -59,18 +65,7 @@ impl Game
 	
 	pub fn set_player2(&mut self, p:PlayerType) -> bool
 	{
-		match p
-		{
-			PlayerType::None => self.p2 = None,
-			PlayerType::IO => self.p2 = Some(PlayerIO::new()),
-			PlayerType::Random => self.p2 = Some(PlayerRandom::new()),
-			PlayerType::AIQ => self.p2 = Some(PlayerAIQ::new(false)),
-			PlayerType::AIQFixed => self.p2 = Some(PlayerAIQ::new(true)),
-			PlayerType::Minimax => self.p2 = Some(PlayerMinimax::new()),
-			PlayerType::AIQOff => self.p2 = Some(PlayerAIQOff::new(false)),
-			PlayerType::AIQOffFixed => self.p2 = Some(PlayerAIQOff::new(true)),
-			PlayerType::AIValue => self.p2 = Some(PlayerAIValue::new()),
-		}
+		self.p2 = Game::map_player(p);
 		
 		if self.p2.is_some()
 		{

@@ -62,7 +62,7 @@ fn test_io()
 	let num = 2; //number of games to play
 	let gps = 1; //games per side
 	let p1 = PlayerType::IO;
-	let p2 = PlayerType::AIQFixed;
+	let p2 = PlayerType::AIQPlay;
 	
 	println!("Player X: {:?}", p1);
 	println!("Player O: {:?}", p2);
