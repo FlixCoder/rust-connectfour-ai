@@ -18,7 +18,7 @@ const GAMMA:f64 = 0.99; //q gamma (action-reward time difference high) (not 1.0,
 const LR:f64 = 0.2; //neural net learning rate (deterministic -> high)
 const LR_DECAY:f64 = 0.1 / 50000f64; //NN learning rate decrease per game(s)
 const LR_MIN:f64 = 0.001; //minimum NN LR
-const LAMBDA:f64 = 0.0; //L2 regularization parameter lambda
+const LAMBDA:f64 = 0.0; //L2 regularization parameter lambda (divide by n manually, pick very small > 0, like pick LAMBDA / n)
 const MOM:f64 = 0.1; //neural net momentum
 const RND_PICK_START:f64 = 0.5; //exploration factor start
 const RND_PICK_DEC:f64 = 20000f64; //random exploration decrease (half every DEC games)
@@ -133,9 +133,7 @@ impl PlayerAIQ
 	/*fn field_to_input(field:&mut Field, p:i32, startp:f64) -> Vec<f64>
 	{
 		let op:i32 = if p == 1 { 2 } else { 1 }; //other player
-		let mut input:Vec<f64> = Vec::with_capacity((field.get_size() + 2) as usize);
-		//1 node always 1.0 to replace bias hopefully
-		input.push(1.0);
+		let mut input:Vec<f64> = Vec::with_capacity((field.get_size() + 1) as usize);
 		//1 nodes for every square: -1 enemy, 0 free, 1 own
 		for val in field.get_field().iter()
 		{
@@ -257,7 +255,7 @@ impl Player for PlayerAIQ
 				//.log_interval(Some(2)) //debug
 				.momentum(MOM)
 				.rate(self.lr)
-				.lambda(LAMBDA)
+				.lambda(LAMBDA / (self.games_played as f64 + 1.0))
 				.go();
 			//save latest as experience
 			if exp_buffer.len() >= EXP_REP_SIZE
@@ -343,7 +341,7 @@ impl Player for PlayerAIQ
 				//.log_interval(Some(2)) //debug
 				.momentum(MOM)
 				.rate(self.lr)
-				.lambda(LAMBDA)
+				.lambda(LAMBDA / (self.games_played as f64 + 1.0))
 				.go();
 			//save latest as experience if not draw (would cause difficulties and is not as important)
 			if self.memreward != 0.5
