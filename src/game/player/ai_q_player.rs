@@ -18,12 +18,13 @@ const GAMMA:f64 = 0.99; //q gamma (action-reward time difference high) (not 1.0,
 const LR:f64 = 0.2; //neural net learning rate (deterministic -> high)
 const LR_DECAY:f64 = 0.1 / 50000f64; //NN learning rate decrease per game(s)
 const LR_MIN:f64 = 0.001; //minimum NN LR
-const MOM:f64 = 0.0; //neural net momentum
+const LAMBDA:f64 = 0.0; //L2 regularization parameter lambda
+const MOM:f64 = 0.1; //neural net momentum
 const RND_PICK_START:f64 = 0.5; //exploration factor start
 const RND_PICK_DEC:f64 = 20000f64; //random exploration decrease (half every DEC games)
 const RND_PICK_MIN:f64 = 0.05; //exploration rate minimum
 const EXP_REP_SIZE:usize = 20000; //size of buffer for experience replay
-const EXP_REP_BATCH:u32 = 14; //batch size for replay training
+const EXP_REP_BATCH:u32 = 19; //batch size for replay training
 const EPOCHS:u32 = 1; //NN training epochs for a mini batch
 
 
@@ -162,7 +163,7 @@ impl Player for PlayerAIQ
 			//create new neural net, as it could not be loaded
 			let n = field.get_size();
 			let w = field.get_w();
-			self.nn = Some(NN::new(&[2*n+w+1, 4*n, 2*n, n, n, n, w])); //set size of NN layers here
+			self.nn = Some(NN::new(&[2*n+w+1, 3*n, n, w])); //set size of NN layers here
 			self.exp_buffer = Some(Vec::with_capacity(EXP_REP_SIZE));
 			//games_played, exploration, lr already set
 		}
@@ -225,7 +226,7 @@ impl Player for PlayerAIQ
 			let qval2 = targetnn.run(&state); //use double q learning target nn, to decouple action and value a bit
 			let max = qval2[PlayerAIQ::argmax(&qval2) as usize];
 			//calculate q update
-			self.memqval[self.memplay as usize] = (self.memreward + GAMMA * max) / (1.0 + GAMMA); //Q learning (divide to stay in [0,1] for sigmoid)
+			self.memqval[self.memplay as usize] = (self.memreward + GAMMA * max) / (1.0 + GAMMA); //Q learning (divide to stay in [0,1])
 			//train on experience replay and the latest experience (q update)
 			let mut trainingset = Vec::new();
 			//experience
@@ -256,6 +257,7 @@ impl Player for PlayerAIQ
 				//.log_interval(Some(2)) //debug
 				.momentum(MOM)
 				.rate(self.lr)
+				.lambda(LAMBDA)
 				.go();
 			//save latest as experience
 			if exp_buffer.len() >= EXP_REP_SIZE
@@ -341,6 +343,7 @@ impl Player for PlayerAIQ
 				//.log_interval(Some(2)) //debug
 				.momentum(MOM)
 				.rate(self.lr)
+				.lambda(LAMBDA)
 				.go();
 			//save latest as experience if not draw (would cause difficulties and is not as important)
 			if self.memreward != 0.5
