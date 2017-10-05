@@ -48,6 +48,13 @@ pub struct PlayerAIQ
 	memplay: u32, //same
 }
 
+//reward values
+const REW_WIN:f64 = 1.0;
+const REW_LOSE:f64 = -1.0;
+const REW_NORMAL:f64 = 0.0; //draw or just a middle play
+const REW_WRONG:f64 = -0.5; //play against rules -> random pick
+const REW_FLAG:f64 = -1000.0; //used as flag to indicate there was no reward yet. (so no play done)
+
 impl PlayerAIQ
 {
 	pub fn new(fix:bool, exp:bool) -> Box<PlayerAIQ>
@@ -55,7 +62,7 @@ impl PlayerAIQ
 		Box::new(PlayerAIQ { initialized: false, fixed: fix, filename: String::new(), pid: 0,
 				nn: None, targetnn: None, games_played: 0, lr: LR, exploration: RND_PICK_START,
 				explore: exp, startp: 0.0, exp_buffer: None,
-				memstate: Vec::new(), memqval: Vec::new(), memreward: -1000.0, memplay: 0 })
+				memstate: Vec::new(), memqval: Vec::new(), memreward: REW_FLAG, memplay: 0 })
 	}
 	
 	fn get_exploration(&self) -> f64
@@ -218,7 +225,7 @@ impl Player for PlayerAIQ
 		let state = PlayerAIQ::field_to_input(field, self.pid, self.startp);
 		
 		//learn if not fixed and not first move (reward is already set, won/loose would be outcome)
-		if !self.fixed && self.memreward != -1000.0
+		if !self.fixed && self.memreward != REW_FLAG
 		{
 			//get Q values for next state
 			let qval2 = targetnn.run(&state); //use double q learning target nn, to decouple action and value a bit
@@ -234,7 +241,7 @@ impl Player for PlayerAIQ
 				{ //EXP_REP_BATCH random experiences to replay
 					let repindex = rng.gen::<usize>() % exp_buffer.len();
 					let mut qval = nn.run(&exp_buffer[repindex].0); //.0 = state 1
-					if exp_buffer[repindex].2 == 0.0 || exp_buffer[repindex].2 == 1.0 //.2 = reward
+					if exp_buffer[repindex].2 == REW_LOSE || exp_buffer[repindex].2 == REW_WIN //.2 = reward
 					{
 						qval[exp_buffer[repindex].1] = exp_buffer[repindex].2; //.1 = action, .2 = reward
 					}
@@ -275,9 +282,9 @@ impl Player for PlayerAIQ
 		}
 		
 		//perform action and set reward
-		self.memreward = 0.0;
+		self.memreward = REW_NORMAL;
 		let mut res = field.play(self.pid, self.memplay);
-		if !res { self.memqval[self.memplay as usize] = -0.5; } //move did not meet the rules, but learn anyway, even if another random move is made
+		if !res { self.memqval[self.memplay as usize] = REW_WRONG; } //move did not meet the rules, but learn anyway, even if another random move is made
 		
 		//random play when it was not rule conform, also modify q-value for it
 		while !res //infinite if it is already draw! (cannot happen without bug)
@@ -305,8 +312,8 @@ impl Player for PlayerAIQ
 			let op:i32 = if self.pid == 1 { 2 } else { 1 }; //other player
 			
 			//set reward (if draw, reward already set properly)
-			if state == self.pid { self.memreward = 1.0; }
-			else if state == op { self.memreward = -1.0; }
+			if state == self.pid { self.memreward = REW_WIN; }
+			else if state == op { self.memreward = REW_LOSE; }
 			
 			//end-values of network should meet reward exactly
 			self.memqval[self.memplay as usize] = self.memreward;
@@ -320,7 +327,7 @@ impl Player for PlayerAIQ
 				{ //EXP_REP_BATCH experiences to replay
 					let repindex = rng.gen::<usize>() % exp_buffer.len();
 					let mut qval = nn.run(&exp_buffer[repindex].0); //.0 = state 1
-					if exp_buffer[repindex].2 == 0.0 || exp_buffer[repindex].2 == 1.0 //.2 = reward
+					if exp_buffer[repindex].2 == REW_LOSE || exp_buffer[repindex].2 == REW_WIN //.2 = reward
 					{
 						qval[exp_buffer[repindex].1] = exp_buffer[repindex].2; //.1 = action, .2 = reward
 					}
@@ -344,7 +351,7 @@ impl Player for PlayerAIQ
 				.lambda(LAMBDA / (self.games_played as f64 + 1.0))
 				.go();
 			//save latest as experience if not draw (would cause difficulties and is not as important)
-			if self.memreward != 0.0
+			if self.memreward != REW_NORMAL
 			{
 				if exp_buffer.len() >= EXP_REP_SIZE
 				{
@@ -360,7 +367,7 @@ impl Player for PlayerAIQ
 		self.lr = self.get_lr();
 		self.exploration = self.get_exploration();
 		self.targetnn = self.nn.clone();
-		self.memreward = -1000.0;
+		self.memreward = REW_FLAG;
 	}
 }
 
