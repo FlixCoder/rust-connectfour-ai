@@ -14,7 +14,7 @@ use self::nn::{NN, HaltCondition, Activation};
 use super::Player;
 use super::super::field::Field;
 
-const GAMMA:f64 = 0.99; //q gamma (action-reward time difference high) (not 1.0, it terminates)
+const GAMMA:f64 = 0.999; //q gamma (action-reward time difference high) (not 1.0 as it terminates)
 const LR:f64 = 0.01; //neural net learning rate (deterministic -> high)
 const LR_DECAY:f64 = 0.01 / 100000f64; //NN learning rate decrease per game(s)
 const LR_MIN:f64 = 0.0001; //minimum NN LR
@@ -275,6 +275,7 @@ impl Player for PlayerAIQ
 		
 		//choose action by e-greedy
 		self.memqval = nn.run(&state);
+		//println!("{:?}", self.memqval); //debug
 		self.memplay = PlayerAIQ::argmax(&self.memqval);
 		if self.explore && rng.gen::<f64>() < self.exploration //random exploration if it should
 		{
