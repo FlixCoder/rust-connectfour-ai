@@ -48,11 +48,11 @@ pub struct PlayerAIQ
 	memplay: u32, //same
 }
 
-//reward values
+//reward values, take care of q-updates when changing (/(x + GAMMA))
 const REW_WIN:f64 = 1.0;
-const REW_LOSE:f64 = -1.0;
-const REW_NORMAL:f64 = 0.0; //draw or just a middle play
-const REW_WRONG:f64 = -0.5; //play against rules -> random pick
+const REW_LOSE:f64 = 0.0;
+const REW_NORMAL:f64 = 0.5; //draw or just a middle play
+const REW_WRONG:f64 = 0.1; //play against rules -> random pick
 const REW_FLAG:f64 = -1000.0; //used as flag to indicate there was no reward yet. (so no play done)
 
 impl PlayerAIQ
@@ -168,7 +168,7 @@ impl Player for PlayerAIQ
 			//create new neural net, as it could not be loaded
 			let n = field.get_size();
 			let w = field.get_w();
-			self.nn = Some(NN::new(&[2*n+w+1, 3*n, n, w], Activation::SELU)); //set size of NN layers here
+			self.nn = Some(NN::new(&[2*n+w+1, 3*n, n, w], Activation::PELU)); //set size of NN layers here
 			self.exp_buffer = Some(Vec::with_capacity(EXP_REP_SIZE));
 			//games_played, exploration, lr already set
 		}
