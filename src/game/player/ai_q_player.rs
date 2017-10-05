@@ -15,10 +15,10 @@ use super::Player;
 use super::super::field::Field;
 
 const GAMMA:f64 = 0.99; //q gamma (action-reward time difference high) (not 1.0, it terminates)
-const LR:f64 = 0.2; //neural net learning rate (deterministic -> high)
-const LR_DECAY:f64 = 0.1 / 50000f64; //NN learning rate decrease per game(s)
-const LR_MIN:f64 = 0.001; //minimum NN LR
-const LAMBDA:f64 = 0.0; //L2 regularization parameter lambda (divide by n manually, pick very small > 0, like pick LAMBDA / n)
+const LR:f64 = 0.01; //neural net learning rate (deterministic -> high)
+const LR_DECAY:f64 = 0.01 / 100000f64; //NN learning rate decrease per game(s)
+const LR_MIN:f64 = 0.0001; //minimum NN LR
+const LAMBDA:f64 = 0.0001; //L2 regularization parameter lambda (divide by n manually, pick very small > 0, like pick LAMBDA / n)
 const MOM:f64 = 0.1; //neural net momentum
 const RND_PICK_START:f64 = 0.5; //exploration factor start
 const RND_PICK_DEC:f64 = 20000f64; //random exploration decrease (half every DEC games)
@@ -168,7 +168,7 @@ impl Player for PlayerAIQ
 			//create new neural net, as it could not be loaded
 			let n = field.get_size();
 			let w = field.get_w();
-			self.nn = Some(NN::new(&[2*n+w+1, 3*n, n, w], Activation::PELU)); //set size of NN layers here
+			self.nn = Some(NN::new(&[2*n+w+1, 3*n, n, w], Activation::PELU, Activation::Sigmoid)); //set size of NN layers here
 			self.exp_buffer = Some(Vec::with_capacity(EXP_REP_SIZE));
 			//games_played, exploration, lr already set
 		}
