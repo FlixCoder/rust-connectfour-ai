@@ -10,7 +10,7 @@ use std::io::{BufReader, BufWriter};
 use std::io::prelude::*;
 use self::rustc_serialize::json;
 use self::rand::Rng;
-use self::nn::{NN, HaltCondition};
+use self::nn::{NN, HaltCondition, Activation};
 use super::Player;
 use super::super::field::Field;
 
@@ -55,7 +55,7 @@ impl PlayerAIQ
 		Box::new(PlayerAIQ { initialized: false, fixed: fix, filename: String::new(), pid: 0,
 				nn: None, targetnn: None, games_played: 0, lr: LR, exploration: RND_PICK_START,
 				explore: exp, startp: 0.0, exp_buffer: None,
-				memstate: Vec::new(), memqval: Vec::new(), memreward: -1.0, memplay: 0 })
+				memstate: Vec::new(), memqval: Vec::new(), memreward: -1000.0, memplay: 0 })
 	}
 	
 	fn get_exploration(&self) -> f64
@@ -161,7 +161,7 @@ impl Player for PlayerAIQ
 			//create new neural net, as it could not be loaded
 			let n = field.get_size();
 			let w = field.get_w();
-			self.nn = Some(NN::new(&[2*n+w+1, 3*n, n, w])); //set size of NN layers here
+			self.nn = Some(NN::new(&[2*n+w+1, 3*n, n, w], Activation::SELU)); //set size of NN layers here
 			self.exp_buffer = Some(Vec::with_capacity(EXP_REP_SIZE));
 			//games_played, exploration, lr already set
 		}
@@ -218,13 +218,13 @@ impl Player for PlayerAIQ
 		let state = PlayerAIQ::field_to_input(field, self.pid, self.startp);
 		
 		//learn if not fixed and not first move (reward is already set, won/loose would be outcome)
-		if !self.fixed && self.memreward != -1.0
+		if !self.fixed && self.memreward != -1000.0
 		{
 			//get Q values for next state
 			let qval2 = targetnn.run(&state); //use double q learning target nn, to decouple action and value a bit
 			let max = qval2[PlayerAIQ::argmax(&qval2) as usize];
 			//calculate q update
-			self.memqval[self.memplay as usize] = (self.memreward + GAMMA * max) / (1.0 + GAMMA); //Q learning (divide to stay in [0,1])
+			self.memqval[self.memplay as usize] = (self.memreward + GAMMA * max) / (1.0 + GAMMA); //Q learning (divide to stay in [-1,1])
 			//train on experience replay and the latest experience (q update)
 			let mut trainingset = Vec::new();
 			//experience
@@ -275,9 +275,9 @@ impl Player for PlayerAIQ
 		}
 		
 		//perform action and set reward
-		self.memreward = 0.5;
+		self.memreward = 0.0;
 		let mut res = field.play(self.pid, self.memplay);
-		if !res { self.memqval[self.memplay as usize] = 0.1; } //move did not meet the rules, but learn anyway, even if another random move is made
+		if !res { self.memqval[self.memplay as usize] = -0.5; } //move did not meet the rules, but learn anyway, even if another random move is made
 		
 		//random play when it was not rule conform, also modify q-value for it
 		while !res //infinite if it is already draw! (cannot happen without bug)
@@ -306,7 +306,7 @@ impl Player for PlayerAIQ
 			
 			//set reward (if draw, reward already set properly)
 			if state == self.pid { self.memreward = 1.0; }
-			else if state == op { self.memreward = 0.0; }
+			else if state == op { self.memreward = -1.0; }
 			
 			//end-values of network should meet reward exactly
 			self.memqval[self.memplay as usize] = self.memreward;
@@ -344,7 +344,7 @@ impl Player for PlayerAIQ
 				.lambda(LAMBDA / (self.games_played as f64 + 1.0))
 				.go();
 			//save latest as experience if not draw (would cause difficulties and is not as important)
-			if self.memreward != 0.5
+			if self.memreward != 0.0
 			{
 				if exp_buffer.len() >= EXP_REP_SIZE
 				{
@@ -360,7 +360,7 @@ impl Player for PlayerAIQ
 		self.lr = self.get_lr();
 		self.exploration = self.get_exploration();
 		self.targetnn = self.nn.clone();
-		self.memreward = -1.0;
+		self.memreward = -1000.0;
 	}
 }
 
