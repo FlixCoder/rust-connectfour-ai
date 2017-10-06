@@ -24,6 +24,7 @@ fn main()
 					test_minimax();
 				}
 				println!("Testing:");
+				test_random();
 				test_io();
 			},
 		_ => {}
@@ -109,7 +110,7 @@ fn test_minimax()
 #[allow(dead_code)]
 fn test_random()
 {
-	let num = 100; //number of games to play
+	let num = 1000; //number of games to play
 	let gps = 1; //games per side
 	let p1 = PlayerType::Random;
 	let p2 = PlayerType::AIQFixed;

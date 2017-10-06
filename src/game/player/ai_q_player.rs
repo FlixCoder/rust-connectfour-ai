@@ -91,7 +91,7 @@ impl PlayerAIQ
 	}
 	
 	//field and extra info
-	fn field_to_input(field:&mut Field, p:i32, startp:f64) -> Vec<f64>
+	/*fn field_to_input(field:&mut Field, p:i32, startp:f64) -> Vec<f64>
 	{
 		let op:i32 = if p == 1 { 2 } else { 1 }; //other player
 		let mut input:Vec<f64> = Vec::with_capacity((2*field.get_size() + field.get_w() + 1) as usize);
@@ -134,10 +134,10 @@ impl PlayerAIQ
 		input.push(startp);
 		//return
 		input
-	}
+	}*/
 	
 	//raw field
-	/*fn field_to_input(field:&mut Field, p:i32, startp:f64) -> Vec<f64>
+	fn field_to_input(field:&mut Field, p:i32, startp:f64) -> Vec<f64>
 	{
 		let op:i32 = if p == 1 { 2 } else { 1 }; //other player
 		let mut input:Vec<f64> = Vec::with_capacity((field.get_size() + 1) as usize);
@@ -152,7 +152,7 @@ impl PlayerAIQ
 		input.push(startp);
 		//return
 		input
-	}*/
+	}
 }
 
 impl Player for PlayerAIQ
@@ -166,9 +166,12 @@ impl Player for PlayerAIQ
 		if file.is_err()
 		{
 			//create new neural net, as it could not be loaded
+			/*let n = field.get_size();
+			let w = field.get_w();
+			self.nn = Some(NN::new(&[2*n+w+1, 3*n, n, w], Activation::PELU, Activation::Sigmoid));*/ //set size of NN layers here
 			let n = field.get_size();
 			let w = field.get_w();
-			self.nn = Some(NN::new(&[2*n+w+1, 3*n, n, w], Activation::PELU, Activation::Sigmoid)); //set size of NN layers here
+			self.nn = Some(NN::new(&[n+1, 6*n, 3*n, n, w], Activation::PELU, Activation::Sigmoid)); //set size of NN layers here
 			self.exp_buffer = Some(Vec::with_capacity(EXP_REP_SIZE));
 			//games_played, exploration, lr already set
 		}
