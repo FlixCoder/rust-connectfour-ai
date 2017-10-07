@@ -313,11 +313,11 @@ impl Player for PlayerAIQ
 	{
 		if !self.fixed
 		{ //learn if not fixed (scope needed for "let nn" and "let targetnn" shortcut)
+			let mut exp_buffer = self.exp_buffer.as_mut().unwrap(); //shortcut
 			if self.games_played >= OBSERVE
 			{
 				let nn = self.nn.as_mut().unwrap();
 				let targetnn = self.targetnn.as_mut().unwrap();
-				let mut exp_buffer = self.exp_buffer.as_mut().unwrap();
 				let mut rng = rand::thread_rng();
 				let op:i32 = if self.pid == 1 { 2 } else { 1 }; //other player
 				
