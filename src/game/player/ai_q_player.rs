@@ -1,4 +1,4 @@
-//! online reinforcement q learner (kind of double q) with experience replay
+//! online reinforcement learner (double deep q learning) with experience replay
 #![allow(dead_code)]
 
 extern crate rand;
@@ -23,8 +23,8 @@ const MOM:f64 = 0.1; //neural net momentum
 const RND_PICK_START:f64 = 0.5; //exploration factor start
 const RND_PICK_DEC:f64 = 50000f64; //random exploration decrease (half every DEC games)
 const RND_PICK_MIN:f64 = 0.05; //exploration rate minimum
-const EXP_REP_SIZE:usize = 20000; //size of buffer for experience replay
-const EXP_REP_BATCH:u32 = 19; //batch size for replay training
+const EXP_REP_SIZE:usize = 25000; //size of buffer for experience replay
+const EXP_REP_BATCH:u32 = 14; //batch size for replay training
 const EPOCHS:u32 = 1; //NN training epochs for a mini batch
 const TARGET_UPDATE:u32 = 500; //number of games between target NN updates
 const OBSERVE:u32 = 1000; //don't learn the first games, just fill experience buffer
@@ -50,7 +50,8 @@ pub struct PlayerAIQ
 	memplay: u32, //same
 }
 
-//reward values, take care of q-updates (normalization) when changing (/(x + GAMMA))
+//reward values, take care of q-updates (normalization) when changing reward (/ (REW_MAX + GAMMA))
+const REW_MAX:f64 = 1.0; //for normalization
 const REW_WIN:f64 = 1.0;
 const REW_LOSE:f64 = 0.0;
 const REW_NORMAL:f64 = 0.55; //draw or just a middle play
@@ -233,10 +234,11 @@ impl Player for PlayerAIQ
 			if self.games_played >= OBSERVE
 			{
 				//get Q values for next state
+				let action = PlayerAIQ::argmax(&nn.run(&state)) as usize; //choose action by online NN
 				let qval2 = targetnn.run(&state); //use double q learning target nn, to decouple action and value a bit
-				let max = qval2[PlayerAIQ::argmax(&qval2) as usize];
+				let max = qval2[action]; //value by target NN
 				//calculate q update
-				self.memqval[self.memplay as usize] = (self.memreward + GAMMA * max) / (1.0 + GAMMA); //Q learning (divide to stay in [0,1] for sigmoid)
+				self.memqval[self.memplay as usize] = (self.memreward + GAMMA * max) / (REW_MAX + GAMMA); //Q learning (divide to stay in [0,1] for sigmoid)
 				//train on experience replay and the latest experience (q update)
 				let mut trainingset = Vec::new();
 				//experience
@@ -252,9 +254,10 @@ impl Player for PlayerAIQ
 						}
 						else
 						{
+							let action = PlayerAIQ::argmax(&nn.run(&exp_buffer[repindex].3)) as usize; //.3 = state 2
 							let qval2 = targetnn.run(&exp_buffer[repindex].3); //.3 = state 2
-							let max = qval2[PlayerAIQ::argmax(&qval2) as usize];
-							qval[exp_buffer[repindex].1] = (exp_buffer[repindex].2 + GAMMA * max) / (1.0 + GAMMA); //.1 = action, .2 = reward
+							let max = qval2[action]; //value by target NN, action by online NN
+							qval[exp_buffer[repindex].1] = (exp_buffer[repindex].2 + GAMMA * max) / (REW_MAX + GAMMA); //.1 = action, .2 = reward //q update
 						}
 						trainingset.push((exp_buffer[repindex].0.clone(), qval));
 					}
@@ -341,9 +344,10 @@ impl Player for PlayerAIQ
 						}
 						else
 						{
+							let action = PlayerAIQ::argmax(&nn.run(&exp_buffer[repindex].3)) as usize; //.3 = state 2
 							let qval2 = targetnn.run(&exp_buffer[repindex].3); //.3 = state 2
-							let max = qval2[PlayerAIQ::argmax(&qval2) as usize];
-							qval[exp_buffer[repindex].1] = (exp_buffer[repindex].2 + GAMMA * max) / (1.0 + GAMMA); //.1 = action, .2 = reward
+							let max = qval2[action]; //value by target NN, action by online NN
+							qval[exp_buffer[repindex].1] = (exp_buffer[repindex].2 + GAMMA * max) / (REW_MAX + GAMMA); //.1 = action, .2 = reward //q update
 						}
 						trainingset.push((exp_buffer[repindex].0.clone(), qval));
 					}
