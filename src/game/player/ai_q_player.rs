@@ -15,9 +15,9 @@ use super::Player;
 use super::super::field::Field;
 
 const GAMMA:f64 = 0.999; //q gamma (action-reward time difference high) (not 1.0 as it terminates)
-const LR:f64 = 0.01; //neural net learning rate (deterministic -> high)
+const LR:f64 = 0.05; //neural net learning rate (deterministic -> high)
 const LR_DECAY:f64 = 0.01 / 100000f64; //NN learning rate decrease per game(s)
-const LR_MIN:f64 = 0.0001; //minimum NN LR
+const LR_MIN:f64 = 0.001; //minimum NN LR
 const LAMBDA:f64 = 0.0001; //L2 regularization parameter lambda (divide by n manually, pick very small > 0, like pick LAMBDA / n)
 const MOM:f64 = 0.1; //neural net momentum
 const RND_PICK_START:f64 = 0.5; //exploration factor start
@@ -26,6 +26,8 @@ const RND_PICK_MIN:f64 = 0.05; //exploration rate minimum
 const EXP_REP_SIZE:usize = 20000; //size of buffer for experience replay
 const EXP_REP_BATCH:u32 = 19; //batch size for replay training
 const EPOCHS:u32 = 1; //NN training epochs for a mini batch
+const TARGET_UPDATE:u32 = 500; //number of games between target NN updates
+const OBSERVE:u32 = 1000; //don't learn the first games, just fill experience buffer
 
 
 pub struct PlayerAIQ
@@ -48,10 +50,10 @@ pub struct PlayerAIQ
 	memplay: u32, //same
 }
 
-//reward values, take care of q-updates when changing (/(x + GAMMA))
+//reward values, take care of q-updates (normalization) when changing (/(x + GAMMA))
 const REW_WIN:f64 = 1.0;
 const REW_LOSE:f64 = 0.0;
-const REW_NORMAL:f64 = 0.5; //draw or just a middle play
+const REW_NORMAL:f64 = 0.55; //draw or just a middle play
 const REW_WRONG:f64 = 0.1; //play against rules -> random pick
 const REW_FLAG:f64 = -1000.0; //used as flag to indicate there was no reward yet. (so no play done)
 
@@ -171,7 +173,7 @@ impl Player for PlayerAIQ
 			self.nn = Some(NN::new(&[2*n+w+1, 3*n, n, w], Activation::PELU, Activation::Sigmoid));*/ //set size of NN layers here
 			let n = field.get_size();
 			let w = field.get_w();
-			self.nn = Some(NN::new(&[n+1, 6*n, 3*n, n, w], Activation::PELU, Activation::Sigmoid)); //set size of NN layers here
+			self.nn = Some(NN::new(&[n+1, 6*n, 3*n, n, w], Activation::PELU, Activation::Sigmoid)); //set size of NN layers here, be careful with activation function
 			self.exp_buffer = Some(Vec::with_capacity(EXP_REP_SIZE));
 			//games_played, exploration, lr already set
 		}
@@ -230,50 +232,52 @@ impl Player for PlayerAIQ
 		//learn if not fixed and not first move (reward is already set, won/loose would be outcome)
 		if !self.fixed && self.memreward != REW_FLAG
 		{
-			//get Q values for next state
-			let qval2 = targetnn.run(&state); //use double q learning target nn, to decouple action and value a bit
-			let max = qval2[PlayerAIQ::argmax(&qval2) as usize];
-			//calculate q update
-			self.memqval[self.memplay as usize] = (self.memreward + GAMMA * max) / (1.0 + GAMMA); //Q learning (divide to stay in [-1,1])
-			//train on experience replay and the latest experience (q update)
-			let mut trainingset = Vec::new();
-			//experience
-			if exp_buffer.len() > 0
+			if self.games_played >= OBSERVE
 			{
-				for _ in 0..EXP_REP_BATCH
-				{ //EXP_REP_BATCH random experiences to replay
-					let repindex = rng.gen::<usize>() % exp_buffer.len();
-					let mut qval = nn.run(&exp_buffer[repindex].0); //.0 = state 1
-					if exp_buffer[repindex].2 == REW_LOSE || exp_buffer[repindex].2 == REW_WIN //.2 = reward
-					{
-						qval[exp_buffer[repindex].1] = exp_buffer[repindex].2; //.1 = action, .2 = reward
+				//get Q values for next state
+				let qval2 = targetnn.run(&state); //use double q learning target nn, to decouple action and value a bit
+				let max = qval2[PlayerAIQ::argmax(&qval2) as usize];
+				//calculate q update
+				self.memqval[self.memplay as usize] = (self.memreward + GAMMA * max) / (1.0 + GAMMA); //Q learning (divide to stay in [0,1] for sigmoid)
+				//train on experience replay and the latest experience (q update)
+				let mut trainingset = Vec::new();
+				//experience
+				if exp_buffer.len() > 0
+				{
+					for _ in 0..EXP_REP_BATCH
+					{ //EXP_REP_BATCH random experiences to replay
+						let repindex = rng.gen::<usize>() % exp_buffer.len();
+						let mut qval = nn.run(&exp_buffer[repindex].0); //.0 = state 1
+						if exp_buffer[repindex].2 == REW_LOSE || exp_buffer[repindex].2 == REW_WIN //.2 = reward
+						{
+							qval[exp_buffer[repindex].1] = exp_buffer[repindex].2; //.1 = action, .2 = reward
+						}
+						else
+						{
+							let qval2 = targetnn.run(&exp_buffer[repindex].3); //.3 = state 2
+							let max = qval2[PlayerAIQ::argmax(&qval2) as usize];
+							qval[exp_buffer[repindex].1] = (exp_buffer[repindex].2 + GAMMA * max) / (1.0 + GAMMA); //.1 = action, .2 = reward
+						}
+						trainingset.push((exp_buffer[repindex].0.clone(), qval));
 					}
-					else
-					{
-						let qval2 = targetnn.run(&exp_buffer[repindex].3); //.3 = state 2
-						let max = qval2[PlayerAIQ::argmax(&qval2) as usize];
-						qval[exp_buffer[repindex].1] = (exp_buffer[repindex].2 + GAMMA * max) / (1.0 + GAMMA); //.1 = action, .2 = reward
-					}
-					trainingset.push((exp_buffer[repindex].0.clone(), qval));
 				}
+				//latest
+				trainingset.push((self.memstate.clone(), self.memqval.clone()));
+				nn.train(&trainingset)
+					.halt_condition(HaltCondition::Epochs(EPOCHS))
+					.log_interval(None)
+					//.log_interval(Some(2)) //debug
+					.momentum(MOM)
+					.rate(self.lr)
+					.lambda(LAMBDA / (self.games_played as f64 + 1.0))
+					.go();
 			}
-			//latest
-			trainingset.push((self.memstate.clone(), self.memqval.clone()));
-			nn.train(&trainingset)
-				.halt_condition(HaltCondition::Epochs(EPOCHS))
-				.log_interval(None)
-				//.log_interval(Some(2)) //debug
-				.momentum(MOM)
-				.rate(self.lr)
-				.lambda(LAMBDA / (self.games_played as f64 + 1.0))
-				.go();
 			//save latest as experience
 			if exp_buffer.len() >= EXP_REP_SIZE
 			{
 				exp_buffer.remove(0); //remove first element
 			}
-			let (state1, _) = trainingset.pop().unwrap();
-			exp_buffer.push((state1, self.memplay as usize, self.memreward, state.clone())); //state1 = memstate (so state to choose action), state = current state (so next state)
+			exp_buffer.push((self.memstate.clone(), self.memplay as usize, self.memreward, state.clone())); //memstate = previous state (so state to choose action), state = current state (so next state)
 		}
 		
 		//choose action by e-greedy
@@ -309,51 +313,54 @@ impl Player for PlayerAIQ
 	{
 		if !self.fixed
 		{ //learn if not fixed (scope needed for "let nn" and "let targetnn" shortcut)
-			let nn = self.nn.as_mut().unwrap();
-			let targetnn = self.targetnn.as_mut().unwrap();
-			let mut exp_buffer = self.exp_buffer.as_mut().unwrap();
-			let mut rng = rand::thread_rng();
-			let op:i32 = if self.pid == 1 { 2 } else { 1 }; //other player
-			
-			//set reward (if draw, reward already set properly)
-			if state == self.pid { self.memreward = REW_WIN; }
-			else if state == op { self.memreward = REW_LOSE; }
-			
-			//end-values of network should meet reward exactly
-			self.memqval[self.memplay as usize] = self.memreward;
-			
-			//train on experience replay and the latest experience (q update)
-			let mut trainingset = Vec::new();
-			//experience
-			if exp_buffer.len() > 0
+			if self.games_played >= OBSERVE
 			{
-				for _ in 0..EXP_REP_BATCH
-				{ //EXP_REP_BATCH experiences to replay
-					let repindex = rng.gen::<usize>() % exp_buffer.len();
-					let mut qval = nn.run(&exp_buffer[repindex].0); //.0 = state 1
-					if exp_buffer[repindex].2 == REW_LOSE || exp_buffer[repindex].2 == REW_WIN //.2 = reward
-					{
-						qval[exp_buffer[repindex].1] = exp_buffer[repindex].2; //.1 = action, .2 = reward
+				let nn = self.nn.as_mut().unwrap();
+				let targetnn = self.targetnn.as_mut().unwrap();
+				let mut exp_buffer = self.exp_buffer.as_mut().unwrap();
+				let mut rng = rand::thread_rng();
+				let op:i32 = if self.pid == 1 { 2 } else { 1 }; //other player
+				
+				//set reward (if draw, reward already set properly)
+				if state == self.pid { self.memreward = REW_WIN; }
+				else if state == op { self.memreward = REW_LOSE; }
+				
+				//end-values of network should meet reward exactly
+				self.memqval[self.memplay as usize] = self.memreward;
+				
+				//train on experience replay and the latest experience (q update)
+				let mut trainingset = Vec::new();
+				//experience
+				if exp_buffer.len() > 0
+				{
+					for _ in 0..EXP_REP_BATCH
+					{ //EXP_REP_BATCH experiences to replay
+						let repindex = rng.gen::<usize>() % exp_buffer.len();
+						let mut qval = nn.run(&exp_buffer[repindex].0); //.0 = state 1
+						if exp_buffer[repindex].2 == REW_LOSE || exp_buffer[repindex].2 == REW_WIN //.2 = reward
+						{
+							qval[exp_buffer[repindex].1] = exp_buffer[repindex].2; //.1 = action, .2 = reward
+						}
+						else
+						{
+							let qval2 = targetnn.run(&exp_buffer[repindex].3); //.3 = state 2
+							let max = qval2[PlayerAIQ::argmax(&qval2) as usize];
+							qval[exp_buffer[repindex].1] = (exp_buffer[repindex].2 + GAMMA * max) / (1.0 + GAMMA); //.1 = action, .2 = reward
+						}
+						trainingset.push((exp_buffer[repindex].0.clone(), qval));
 					}
-					else
-					{
-						let qval2 = targetnn.run(&exp_buffer[repindex].3); //.3 = state 2
-						let max = qval2[PlayerAIQ::argmax(&qval2) as usize];
-						qval[exp_buffer[repindex].1] = (exp_buffer[repindex].2 + GAMMA * max) / (1.0 + GAMMA); //.1 = action, .2 = reward
-					}
-					trainingset.push((exp_buffer[repindex].0.clone(), qval));
 				}
+				//latest
+				trainingset.push((self.memstate.clone(), self.memqval.clone()));
+				nn.train(&trainingset)
+					.halt_condition(HaltCondition::Epochs(EPOCHS))
+					.log_interval(None)
+					//.log_interval(Some(2)) //debug
+					.momentum(MOM)
+					.rate(self.lr)
+					.lambda(LAMBDA / (self.games_played as f64 + 1.0))
+					.go();
 			}
-			//latest
-			trainingset.push((self.memstate.clone(), self.memqval.clone()));
-			nn.train(&trainingset)
-				.halt_condition(HaltCondition::Epochs(EPOCHS))
-				.log_interval(None)
-				//.log_interval(Some(2)) //debug
-				.momentum(MOM)
-				.rate(self.lr)
-				.lambda(LAMBDA / (self.games_played as f64 + 1.0))
-				.go();
 			//save latest as experience if not draw (would cause difficulties and is not as important)
 			if self.memreward != REW_NORMAL
 			{
@@ -361,8 +368,7 @@ impl Player for PlayerAIQ
 				{
 					exp_buffer.remove(0); //remove first element
 				}
-				let (state1, _) = trainingset.pop().unwrap();
-				exp_buffer.push((state1, self.memplay as usize, self.memreward, Vec::new())); //state1 = memstate (so state to choose action), new vec for empty end state
+				exp_buffer.push((self.memstate.clone(), self.memplay as usize, self.memreward, Vec::new())); //memstate = previous state (so state to choose action), state = current state (so next state)
 			}
 		}
 		
@@ -370,8 +376,11 @@ impl Player for PlayerAIQ
 		self.games_played += 1;
 		self.lr = self.get_lr();
 		self.exploration = self.get_exploration();
-		self.targetnn = self.nn.clone();
 		self.memreward = REW_FLAG;
+		if self.games_played % TARGET_UPDATE == 0
+		{
+			self.targetnn = self.nn.clone();
+		}
 	}
 }
 
