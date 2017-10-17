@@ -16,7 +16,7 @@ fn main()
 		4 => train(),
 		5 => {
 				println!("Training:");
-				for i in 0..100
+				for i in 0..20
 				{
 					println!("Training {}:", i+1);
 					train();
@@ -135,7 +135,7 @@ fn test_random()
 #[allow(dead_code)]
 fn train()
 {
-	let num = 1_000; //number of games to play
+	let num = 2_000; //number of games to play
 	let gps = 10; //games per side
 	let p1 = PlayerType::AIQFixed;
 	let p2 = PlayerType::AIQ;
