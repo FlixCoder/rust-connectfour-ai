@@ -14,16 +14,16 @@ use self::nn::{NN, HaltCondition, Activation};
 use super::Player;
 use super::super::field::Field;
 
-const GAMMA:f64 = 0.999; //q gamma (action-reward time difference high) (not 1.0 as it terminates)
+const GAMMA:f64 = 0.99; //q gamma (action-reward time difference high) (not 1.0 as the game terminates)
 const LR:f64 = 0.05; //neural net learning rate (deterministic -> high)
-const LR_DECAY:f64 = 0.01 / 100000f64; //NN learning rate decrease per game(s)
-const LR_MIN:f64 = 0.001; //minimum NN LR
-const LAMBDA:f64 = 0.0001; //L2 regularization parameter lambda (divide by n manually, pick very small > 0, like pick LAMBDA / n)
-const MOM:f64 = 0.2; //neural net momentum
-const RND_PICK_START:f64 = 0.5; //exploration factor start
-const RND_PICK_DEC:f64 = 100000f64; //random exploration decrease (half every DEC games)
+const LR_DECAY:f64 = 0.01 / 20000f64; //NN learning rate decrease per game(s)
+const LR_MIN:f64 = 0.01; //minimum NN LR
+const LAMBDA:f64 = 0.0; //L2 regularization parameter lambda (divide by n manually, pick very small > 0, like pick LAMBDA / n)
+const MOM:f64 = 0.0; //neural net momentum
+const RND_PICK_START:f64 = 0.9; //exploration factor start
+const RND_PICK_DEC:f64 = 25000f64; //random exploration decrease (half every DEC games)
 const RND_PICK_MIN:f64 = 0.1; //exploration rate minimum
-const EXP_REP_SIZE:usize = 50000; //size of buffer for experience replay
+const EXP_REP_SIZE:usize = 25000; //size of buffer for experience replay
 const EXP_REP_BATCH:u32 = 19; //batch size for replay training
 const EPOCHS:u32 = 1; //NN training epochs for a mini batch
 const TARGET_UPDATE:u32 = 250; //number of games between target NN updates
@@ -55,7 +55,7 @@ const REW_MAX:f64 = 1.0; //for normalization
 const REW_WIN:f64 = 1.0;
 const REW_LOSE:f64 = 0.0;
 const REW_NORMAL:f64 = 0.55; //draw or just a middle play
-const REW_WRONG:f64 = 0.1; //play against rules -> random pick
+const REW_WRONG:f64 = 0.2; //play against rules -> random pick
 const REW_FLAG:f64 = -1000.0; //used as flag to indicate there was no reward yet. (so no play done)
 
 impl PlayerAIQ
@@ -172,7 +172,7 @@ impl Player for PlayerAIQ
 			let n = field.get_size();
 			let w = field.get_w();
 			//self.nn = Some(NN::new(&[2*n+w+1, 3*n, n, w], Activation::PELU, Activation::Sigmoid)); //set size of NN layers here, be careful with activation function
-			self.nn = Some(NN::new(&[n+1, 12*n, 6*n, 3*n, n, w], Activation::PELU, Activation::Sigmoid)); //set size of NN layers here, be careful with activation function
+			self.nn = Some(NN::new(&[n+1, 12*n, 6*n, 3*n, n, w], Activation::SELU, Activation::Sigmoid)); //set size of NN layers here, be careful with activation function
 			self.exp_buffer = Some(Vec::with_capacity(EXP_REP_SIZE));
 			//games_played, exploration, lr already set
 		}
