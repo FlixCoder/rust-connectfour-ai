@@ -17,14 +17,14 @@ use super::super::field::Field;
 const GAMMA:f64 = 0.99; //q gamma (action-reward time difference high) (not 1.0 as the game terminates)
 const LR:f64 = 0.05; //neural net learning rate (deterministic -> high)
 const LR_DECAY:f64 = 0.01 / 20000f64; //NN learning rate decrease per game(s)
-const LR_MIN:f64 = 0.01; //minimum NN LR
+const LR_MIN:f64 = 0.005; //minimum NN LR
 const LAMBDA:f64 = 0.0; //L2 regularization parameter lambda (divide by n manually, pick very small > 0, like pick LAMBDA / n)
 const MOM:f64 = 0.0; //neural net momentum
 const RND_PICK_START:f64 = 0.9; //exploration factor start
 const RND_PICK_DEC:f64 = 25000f64; //random exploration decrease (half every DEC games)
 const RND_PICK_MIN:f64 = 0.1; //exploration rate minimum
 const EXP_REP_SIZE:usize = 25000; //size of buffer for experience replay
-const EXP_REP_BATCH:u32 = 9; //batch size for replay training
+const EXP_REP_BATCH:u32 = 14; //batch size for replay training
 const EPOCHS:u32 = 1; //NN training epochs for a mini batch
 const TARGET_UPDATE:u32 = 250; //number of games between target NN updates
 const OBSERVE:u32 = 1000; //don't learn the first games, just fill experience buffer
@@ -172,7 +172,7 @@ impl Player for PlayerAIQ
 			let n = field.get_size();
 			let w = field.get_w();
 			//self.nn = Some(NN::new(&[2*n+w+1, 3*n, n, w], Activation::PELU, Activation::Sigmoid)); //set size of NN layers here, be careful with activation function
-			self.nn = Some(NN::new(&[n+1, 12*n, 6*n, 3*n, n, w], Activation::SELU, Activation::Sigmoid)); //set size of NN layers here, be careful with activation function
+			self.nn = Some(NN::new(&[n+1, 6*n, 3*n, n, w], Activation::PELU, Activation::Sigmoid)); //set size of NN layers here, be careful with activation function
 			self.exp_buffer = Some(Vec::with_capacity(EXP_REP_SIZE));
 			//games_played, exploration, lr already set
 		}
