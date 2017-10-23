@@ -7,7 +7,7 @@ use std::time::Instant;
 #[allow(unreachable_code)]
 fn main()
 {
-	match 5
+	match 6
 	{
 		0 => aiq_play(),
 		1 => aiq_test_io(),

@@ -138,7 +138,7 @@ impl PlayerAIValue
 		let len = self.game_buffer.len();
 		for _ in 0..len
 		{ //n random O(1) operations on the buffer to shuffle
-			let i = rng.gen::<usize>() & len;
+			let i = rng.gen::<usize>() % len;
 			let item = self.game_buffer.swap_remove(i);
 			self.game_buffer.push(item);
 		}
