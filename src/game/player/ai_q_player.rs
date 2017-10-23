@@ -378,7 +378,7 @@ impl Player for PlayerAIQ
 		self.games_played += 1;
 		self.lr = self.get_lr();
 		self.exploration = self.get_exploration();
-		self.memreward = REW_FLAG;
+		self.memreward = REW_FLAG; //reset
 		if self.games_played % TARGET_UPDATE == 0
 		{
 			self.targetnn = self.nn.clone();
