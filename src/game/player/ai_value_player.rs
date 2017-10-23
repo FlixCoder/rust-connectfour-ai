@@ -15,21 +15,25 @@ use super::Player;
 use super::super::field::Field;
 use std::f64;
 
-const DEEPNESS:u32 = 5; //recursion limit
+const DEEPNESS:u32 = 3; //recursion limit
 const LEARN_FREQ:u32 = 100; //number of games between learning to collect data to train with
 const LR:f64 = 0.05; //neural net learning rate (deterministic -> high)
 const LR_DECAY:f64 = 0.01 / 20000f64; //NN learning rate decrease per game(s)
 const LR_MIN:f64 = 0.005; //minimum NN LR
-const LAMBDA:f64 = 0.0; //L2 regularization parameter lambda (divide by n manually, pick very small > 0, like pick LAMBDA / n)
+const LAMBDA:f64 = 0.0001; //L2 regularization parameter lambda (divide by n manually, pick very small > 0, like pick LAMBDA / n)
 const MOM:f64 = 0.9; //neural net momentum
-const RND_PICK_START:f64 = 0.9; //exploration factor start
+const RND_PICK_START:f64 = 0.1; //exploration factor start
 const RND_PICK_DEC:f64 = 25000f64; //random exploration decrease (half every DEC games)
-const RND_PICK_MIN:f64 = 0.1; //exploration rate minimum
+const RND_PICK_MIN:f64 = 0.05; //exploration rate minimum
 const EPOCHS:u32 = 2; //NN training epochs for per data set
 
-//values for a won or lost game
-const VAL_MAX:f64 = 1.0; //f64::MAX
-const VAL_MIN:f64 = -1.0; //f64::MIN
+//values for a won or lost game in minimax and heuristic (neural net outputs should be smaller)
+const VAL_MAX:f64 = 2.0; //f64::MAX
+const VAL_MIN:f64 = -2.0; //f64::MIN
+//values for value to train with NN
+const VAL_WIN:f64 = 1.0; //starting player wins value for NN learning
+const VAL_DRAW:f64 = 0.0; //draw's value for NN learning
+const VAL_LOSE:f64 = -1.0; //starting player loses value for NN learning
 
 pub struct PlayerAIValue
 {
@@ -270,9 +274,9 @@ impl Player for PlayerAIValue
 		{
 			//collect data
 			let op:i32 = if self.startp == 1 { 2 } else { 1 }; //other player
-			let mut value = 0.0; //draw
-			if state == self.startp { value = 1.0; } //win
-			else if state == op { value = -1.0; } //lose
+			let mut value = VAL_DRAW; //draw
+			if state == self.startp { value = VAL_WIN; } //win
+			else if state == op { value = VAL_LOSE; } //lose
 			
 			while !self.current_game.is_empty()
 			{

@@ -40,6 +40,7 @@ fn main()
 				general_play(PlayerType::Random, PlayerType::AIValueFixed, 1000, 1, true);
 				general_play(PlayerType::IO, PlayerType::AIValuePlay, 2, 1, true);
 			},
+		7 => general_play(PlayerType::IO, PlayerType::AIValuePlay, 2, 1, true),
 		_ => {
 				//general playing with command line arguments
 			}
