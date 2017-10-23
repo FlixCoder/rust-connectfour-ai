@@ -128,9 +128,9 @@ impl Game
 		true
 	}
 	
-	pub fn play_many(&mut self, num:u32, every:u32) -> bool
+	pub fn play_many(&mut self, num:u32, every:u32) -> (f64, f64)
 	{
-		if num<1 { return false; }
+		if num<1 { return (-1.0, -1.0); }
 		
 		let mut p1win:u32 = 0;
 		let mut draw:u32 = 0;
@@ -139,7 +139,7 @@ impl Game
 		for i in 0..num
 		{
 			if i > 0 && i%every == 0 { self.startp = if self.startp == 1 { 2 } else { 1 }; } //switch sides every "every" game
-			if !self.play() { return false; }
+			if !self.play() { return (-1.0, -1.0); }
 			match self.field.get_state()
 			{
 				-1 => draw += 1,
@@ -160,6 +160,6 @@ impl Game
 		println!("Player O wins: {:>6.2}% ({}/{})", p2wr, p2win, num);
 		println!("");
 		
-		true
+		(p1wr, p2wr)
 	}
 }

@@ -9,151 +9,105 @@ fn main()
 {
 	match 5
 	{
-		0 => play(),
-		1 => test_io(),
-		2 => test_minimax(),
-		3 => test_random(),
-		4 => train(),
+		0 => aiq_play(),
+		1 => aiq_test_io(),
+		2 => aiq_test_minimax(),
+		3 => aiq_test_random(),
+		4 => aiq_train(),
 		5 => {
 				println!("Training:");
 				for i in 0..10
 				{
 					println!("Training {}:", i+1);
-					train();
+					aiq_train();
 					println!("Test {}:", i+1);
-					test_minimax();
+					aiq_test_minimax();
 				}
 				println!("Testing:");
-				test_random();
-				test_io();
+				aiq_test_random();
+				aiq_test_io();
 			},
-		_ => {}
+		6 => { //AIValue training
+				println!("Training:");
+				for i in 0..10
+				{
+					println!("Training {}:", i+1);
+					general_play(PlayerType::AIValueFixed, PlayerType::AIValue, 5_000, 10, true);
+					println!("Test {}:", i+1);
+					general_play(PlayerType::Minimax, PlayerType::AIValueFixed, 100, 1, true);
+				}
+				println!("Testing:");
+				general_play(PlayerType::Random, PlayerType::AIValueFixed, 1000, 1, true);
+				general_play(PlayerType::IO, PlayerType::AIValuePlay, 2, 1, true);
+			},
+		_ => {
+				//general playing with command line arguments
+			}
 	}
 }
 
 
 #[allow(dead_code)]
-fn play()
+fn general_play(p1:PlayerType, p2:PlayerType, num:u32, gps:u32, player1start:bool)
 {
-	let num = 6; //number of games to play
-	let gps = 1; //games per side
-	let p1 = PlayerType::IO;
-	let p2 = PlayerType::AIQ;
-	
 	println!("Player X: {:?}", p1);
 	println!("Player O: {:?}", p2);
 	println!("Playing {} games..", num);
 	
+	//prepare
 	let mut game = Game::new();
-	game.set_start_player(1);
+	game.set_start_player(if player1start {1} else {2});
 	game.set_player1(p1);
 	game.set_player2(p2);
 	
+	//measure time
 	let now = Instant::now();
-	game.play_many(num, gps);
+	let (p1w, p2w) = game.play_many(num, gps); //play
 	let elapsed = now.elapsed();
 	let sec = (elapsed.as_secs() as f64) + (elapsed.subsec_nanos() as f64 / 1000_000_000.0);
 	println!("Time: {} min {:.3} s", (sec / 60.0).floor(), sec % 60.0);
 	println!("");
+	
+	//drop worse player first in case 2 learning agents play against each other and use the same file
+	if p1w >= p2w
+	{
+		game.set_player2(PlayerType::None);
+		game.set_player1(PlayerType::None);
+	}
+	else
+	{
+		game.set_player1(PlayerType::None);
+		game.set_player2(PlayerType::None);
+	}
 }
 
 #[allow(dead_code)]
-fn test_io()
+fn aiq_play()
 {
-	let num = 2; //number of games to play
-	let gps = 1; //games per side
-	let p1 = PlayerType::IO;
-	let p2 = PlayerType::AIQPlay;
-	
-	println!("Player X: {:?}", p1);
-	println!("Player O: {:?}", p2);
-	println!("Playing {} games..", num);
-	
-	let mut game = Game::new();
-	game.set_start_player(1);
-	game.set_player1(p1);
-	game.set_player2(p2);
-	
-	let now = Instant::now();
-	game.play_many(num, gps);
-	let elapsed = now.elapsed();
-	let sec = (elapsed.as_secs() as f64) + (elapsed.subsec_nanos() as f64 / 1000_000_000.0);
-	println!("Time: {} min {:.3} s", (sec / 60.0).floor(), sec % 60.0);
-	println!("");
+	general_play(PlayerType::IO, PlayerType::AIQ, 6, 1, true);
 }
 
 #[allow(dead_code)]
-fn test_minimax()
+fn aiq_test_io()
 {
-	let num = 100; //number of games to play
-	let gps = 1; //games per side
-	let p1 = PlayerType::Minimax;
-	let p2 = PlayerType::AIQFixed;
-	
-	println!("Player X: {:?}", p1);
-	println!("Player O: {:?}", p2);
-	println!("Playing {} games..", num);
-	
-	let mut game = Game::new();
-	game.set_start_player(1);
-	game.set_player1(p1);
-	game.set_player2(p2);
-	
-	let now = Instant::now();
-	game.play_many(num, gps);
-	let elapsed = now.elapsed();
-	let sec = (elapsed.as_secs() as f64) + (elapsed.subsec_nanos() as f64 / 1000_000_000.0);
-	println!("Time: {} min {:.3} s", (sec / 60.0).floor(), sec % 60.0);
-	println!("");
+	general_play(PlayerType::IO, PlayerType::AIQPlay, 2, 1, true);
 }
 
 #[allow(dead_code)]
-fn test_random()
+fn aiq_test_minimax()
 {
-	let num = 1000; //number of games to play
-	let gps = 1; //games per side
-	let p1 = PlayerType::Random;
-	let p2 = PlayerType::AIQFixed;
-	
-	println!("Player X: {:?}", p1);
-	println!("Player O: {:?}", p2);
-	println!("Playing {} games..", num);
-	
-	let mut game = Game::new();
-	game.set_start_player(1);
-	game.set_player1(p1);
-	game.set_player2(p2);
-	
-	let now = Instant::now();
-	game.play_many(num, gps);
-	let elapsed = now.elapsed();
-	let sec = (elapsed.as_secs() as f64) + (elapsed.subsec_nanos() as f64 / 1000_000_000.0);
-	println!("Time: {} min {:.3} s", (sec / 60.0).floor(), sec % 60.0);
-	println!("");
+	general_play(PlayerType::Minimax, PlayerType::AIQFixed, 100, 1, true);
 }
 
 #[allow(dead_code)]
-fn train()
+fn aiq_test_random()
 {
-	let num = 5_000; //number of games to play
-	let gps = 10; //games per side
-	let p1 = PlayerType::AIQFixed;
-	let p2 = PlayerType::AIQ;
-	
-	println!("Player X: {:?}", p1);
-	println!("Player O: {:?}", p2);
-	println!("Playing {} games..", num);
-	
-	let mut game = Game::new();
-	game.set_start_player(1);
-	game.set_player1(p1);
-	game.set_player2(p2);
-	
-	let now = Instant::now();
-	game.play_many(num, gps);
-	let elapsed = now.elapsed();
-	let sec = (elapsed.as_secs() as f64) + (elapsed.subsec_nanos() as f64 / 1000_000_000.0);
-	println!("Time: {} min {:.3} s", (sec / 60.0).floor(), sec % 60.0);
-	println!("");
+	general_play(PlayerType::Random, PlayerType::AIQFixed, 1000, 1, true);
+}
+
+#[allow(dead_code)]
+fn aiq_train()
+{
+	general_play(PlayerType::AIQFixed, PlayerType::AIQ, 5_000, 10, true);
 }
 
