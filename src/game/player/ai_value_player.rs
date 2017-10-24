@@ -17,6 +17,7 @@ use std::f64;
 
 const DEEPNESS:u32 = 3; //recursion limit
 const LEARN_FREQ:u32 = 100; //number of games between learning to collect data to train with
+const GAMMA:f64 = 0.95; //temporal unsureness factor, a lot like GAMMA in Q-learning
 const LR:f64 = 0.05; //neural net learning rate (deterministic -> high)
 const LR_DECAY:f64 = 0.01 / 20000f64; //NN learning rate decrease per game(s)
 const LR_MIN:f64 = 0.005; //minimum NN LR
@@ -274,6 +275,7 @@ impl Player for PlayerAIValue
 		{
 			//collect data
 			let op:i32 = if self.startp == 1 { 2 } else { 1 }; //other player
+			let mut temporal_factor = 1.0;
 			let mut value = VAL_DRAW; //draw
 			if state == self.startp { value = VAL_WIN; } //win
 			else if state == op { value = VAL_LOSE; } //lose
@@ -281,8 +283,9 @@ impl Player for PlayerAIValue
 			while !self.current_game.is_empty()
 			{
 				let state = self.current_game.pop().unwrap();
-				let result = vec![value];
+				let result = vec![temporal_factor * value];
 				self.game_buffer.push((state, result));
+				temporal_factor *= GAMMA; //induce unsureness at the start of the game, avoid always 1 for start player
 			}
 			
 			//learn if it is time
