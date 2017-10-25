@@ -29,9 +29,9 @@ const EPOCHS:u32 = 2; //NN training epochs for per data set
 const VAL_MAX:f64 = 2.0; //f64::MAX
 const VAL_MIN:f64 = -2.0; //f64::MIN
 //values for value to train with NN
-const VAL_WIN:f64 = 0.9; //starting player wins value for NN learning
-const VAL_DRAW:f64 = 0.0; //draw's value for NN learning
-const VAL_LOSE:f64 = -0.9; //starting player loses value for NN learning
+const VAL_WIN:f64 = 0.9; //starting player wins value for NN learning (greater than 0!)
+const VAL_DRAW:f64 = 0.0; //draw's value for NN learning (0!)
+const VAL_LOSE:f64 = -0.9; //starting player loses value for NN learning (less than 0!)
 
 pub struct PlayerAIValue
 {
@@ -262,7 +262,7 @@ impl Player for PlayerAIValue
 				let state = self.current_game.pop().unwrap();
 				let result = vec![temporal_factor * value];
 				self.games_buffer.push((state, result));
-				temporal_factor *= GAMMA; //induce unsureness at the start of the game, avoid always 1 for start player
+				temporal_factor *= GAMMA; //induce unsureness at the start of the game, avoid constant value learned, prioritize fast win
 			}
 			
 			//learn if it is time
