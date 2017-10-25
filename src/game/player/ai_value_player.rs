@@ -206,7 +206,6 @@ impl Player for PlayerAIValue
 		
 		let p = self.pid;
 		let op = if p == 1 {2} else {1};
-		let mut rng = rand::thread_rng();
 		
 		//decide which action x to take
 		let mut x:u32 = 0;

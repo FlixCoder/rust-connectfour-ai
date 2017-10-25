@@ -10,7 +10,7 @@ fn main()
 	match 5
 	{
 		0 => general_play(PlayerType::IO, PlayerType::AIValue, 2, 1, true), //play against IO + learn
-		1 => general_play(PlayerType::IO, PlayerType::AIValuePlay, 2, 1, true), //test with IO
+		1 => general_play(PlayerType::IO, PlayerType::AIValueFixed, 2, 1, true), //test with IO
 		2 => general_play(PlayerType::Minimax, PlayerType::AIValueFixed, 100, 1, true), //test with minimax
 		3 => general_play(PlayerType::Random, PlayerType::AIValueFixed, 1000, 1, true), //test with random
 		4 => general_play(PlayerType::AIValueFixed, PlayerType::AIValue, 1_000, 10, true), //training
@@ -25,7 +25,7 @@ fn main()
 				}
 				println!("Testing:");
 				general_play(PlayerType::Random, PlayerType::AIValueFixed, 1000, 1, true);
-				general_play(PlayerType::IO, PlayerType::AIValuePlay, 2, 1, true);
+				general_play(PlayerType::IO, PlayerType::AIValueFixed, 2, 1, true);
 			},
 		_ => {
 				//general playing with command line arguments
