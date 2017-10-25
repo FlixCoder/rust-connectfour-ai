@@ -7,32 +7,19 @@ use std::time::Instant;
 #[allow(unreachable_code)]
 fn main()
 {
-	match 6
+	match 5
 	{
-		0 => aiq_play(),
-		1 => aiq_test_io(),
-		2 => aiq_test_minimax(),
-		3 => aiq_test_random(),
-		4 => aiq_train(),
-		5 => {
+		0 => general_play(PlayerType::IO, PlayerType::AIValue, 2, 1, true), //play against IO + learn
+		1 => general_play(PlayerType::IO, PlayerType::AIValuePlay, 2, 1, true), //test with IO
+		2 => general_play(PlayerType::Minimax, PlayerType::AIValueFixed, 100, 1, true), //test with minimax
+		3 => general_play(PlayerType::Random, PlayerType::AIValueFixed, 1000, 1, true), //test with random
+		4 => general_play(PlayerType::AIValueFixed, PlayerType::AIValue, 1_000, 10, true), //training
+		5 => { //continuous training and testing
 				println!("Training:");
 				for i in 0..10
 				{
 					println!("Training {}:", i+1);
-					aiq_train();
-					println!("Test {}:", i+1);
-					aiq_test_minimax();
-				}
-				println!("Testing:");
-				aiq_test_random();
-				aiq_test_io();
-			},
-		6 => { //AIValue training
-				println!("Training:");
-				for i in 0..10
-				{
-					println!("Training {}:", i+1);
-					general_play(PlayerType::AIValueFixed, PlayerType::AIValue, 5_000, 10, true);
+					general_play(PlayerType::AIValueFixed, PlayerType::AIValue, 1_000, 10, true);
 					println!("Test {}:", i+1);
 					general_play(PlayerType::Minimax, PlayerType::AIValueFixed, 100, 1, true);
 				}
@@ -40,7 +27,6 @@ fn main()
 				general_play(PlayerType::Random, PlayerType::AIValueFixed, 1000, 1, true);
 				general_play(PlayerType::IO, PlayerType::AIValuePlay, 2, 1, true);
 			},
-		7 => general_play(PlayerType::IO, PlayerType::AIValuePlay, 2, 1, true),
 		_ => {
 				//general playing with command line arguments
 			}

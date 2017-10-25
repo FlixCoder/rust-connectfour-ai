@@ -14,7 +14,7 @@ use self::player::ai_value_player::PlayerAIValue;
 
 
 #[derive(Debug)]
-pub enum PlayerType {None, IO, Random, AIQ, AIQFixed, AIQPlay, Minimax, AIQOff, AIQOffFixed, AIValue, AIValueFixed, AIValuePlay}
+pub enum PlayerType {None, IO, Random, AIQ, AIQFixed, AIQPlay, Minimax, AIQOff, AIQOffFixed, AIValue, AIValueFixed}
 
 pub struct Game
 {
@@ -44,9 +44,8 @@ impl Game
 			PlayerType::Minimax => Some(PlayerMinimax::new()),
 			PlayerType::AIQOff => Some(PlayerAIQOff::new(false)),
 			PlayerType::AIQOffFixed => Some(PlayerAIQOff::new(true)),
-			PlayerType::AIValue => Some(PlayerAIValue::new(false, true)),
-			PlayerType::AIValueFixed => Some(PlayerAIValue::new(true, true)),
-			PlayerType::AIValuePlay => Some(PlayerAIValue::new(true, false)),
+			PlayerType::AIValue => Some(PlayerAIValue::new(false)),
+			PlayerType::AIValueFixed => Some(PlayerAIValue::new(true)),
 		}
 	}
 	

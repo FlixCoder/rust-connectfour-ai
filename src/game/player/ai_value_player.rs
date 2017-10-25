@@ -16,25 +16,22 @@ use super::super::field::Field;
 use std::f64;
 
 const DEEPNESS:u32 = 3; //recursion limit
-const LEARN_FREQ:u32 = 100; //number of games between learning to collect data to train with
-const GAMMA:f64 = 0.95; //temporal unsureness factor, a lot like GAMMA in Q-learning
-const LR:f64 = 0.05; //neural net learning rate (deterministic -> high)
-const LR_DECAY:f64 = 0.01 / 20000f64; //NN learning rate decrease per game(s)
+const LEARN_FREQ:u32 = 10; //number of games between learning to collect data to train with
+const GAMMA:f64 = 0.9; //temporal unsureness factor
+const LR:f64 = 0.02; //neural net learning rate (deterministic -> high)
+const LR_DECAY:f64 = 0.01 / 5000f64; //NN learning rate decrease per game(s)
 const LR_MIN:f64 = 0.005; //minimum NN LR
 const LAMBDA:f64 = 0.0001; //L2 regularization parameter lambda (divide by n manually, pick very small > 0, like pick LAMBDA / n)
-const MOM:f64 = 0.9; //neural net momentum
-const RND_PICK_START:f64 = 0.1; //exploration factor start
-const RND_PICK_DEC:f64 = 25000f64; //random exploration decrease (half every DEC games)
-const RND_PICK_MIN:f64 = 0.05; //exploration rate minimum
+const MOM:f64 = 0.5; //neural net momentum
 const EPOCHS:u32 = 2; //NN training epochs for per data set
 
-//values for a won or lost game in minimax and heuristic (neural net outputs should be smaller)
+//values for a won or lost game in minimax and heuristic (neural net outputs should be closer to zero)
 const VAL_MAX:f64 = 2.0; //f64::MAX
 const VAL_MIN:f64 = -2.0; //f64::MIN
 //values for value to train with NN
-const VAL_WIN:f64 = 1.0; //starting player wins value for NN learning
+const VAL_WIN:f64 = 0.9; //starting player wins value for NN learning
 const VAL_DRAW:f64 = 0.0; //draw's value for NN learning
-const VAL_LOSE:f64 = -1.0; //starting player loses value for NN learning
+const VAL_LOSE:f64 = -0.9; //starting player loses value for NN learning
 
 pub struct PlayerAIValue
 {
@@ -46,29 +43,22 @@ pub struct PlayerAIValue
 	filename: String, //file name for NN/agent information
 	nn: Option<NN>, //neural network for neutral state evaluation (value based on starting player)
 	lr: f64, //NN learning rate
-	exploration: f64, //eps-greedy exploration factor
-	explore: bool, //use eps-greedy?
 	current_game: Vec<Vec<f64>>, //buffer for states, that occured in the current game
-	game_buffer: Vec<(Vec<f64>,Vec<f64>)>, //buffer of game data to learn -> training buffer
+	games_buffer: Vec<(Vec<f64>,Vec<f64>)>, //buffer of game data to learn -> training buffer
 }
 
 impl PlayerAIValue
 {
-	pub fn new(fix: bool, expl: bool) -> Box<PlayerAIValue>
+	pub fn new(fix: bool) -> Box<PlayerAIValue>
 	{
 		Box::new(PlayerAIValue { initialized: false, fixed: fix, pid: 0, startp: 0, games_played: 0,
-						filename: String::new(), nn: None, lr: LR, exploration: RND_PICK_START, explore: expl,
-						current_game: Vec::new(), game_buffer: Vec::new() })
+						filename: String::new(), nn: None, lr: LR, current_game: Vec::new(),
+						games_buffer: Vec::new() })
 	}
 	
 	fn get_lr(&self) -> f64
 	{
 		LR_MIN.max(LR - LR_DECAY * self.games_played as f64)
-	}
-	
-	fn get_exploration(&self) -> f64
-	{
-		RND_PICK_MIN.max(RND_PICK_START * (2f64).powf(-(self.games_played as f64)/RND_PICK_DEC))
 	}
 	
 	//raw field
@@ -103,6 +93,7 @@ impl PlayerAIValue
 			
 			let result = nn.run(&state);
 			let value = factor * result[0];
+			
 			return value;
 		}
 	}
@@ -140,16 +131,16 @@ impl PlayerAIValue
 		let mut rng = rand::thread_rng();
 		
 		//shuffle data
-		let len = self.game_buffer.len();
+		let len = self.games_buffer.len();
 		for _ in 0..len
 		{ //n random O(1) operations on the buffer to shuffle
 			let i = rng.gen::<usize>() % len;
-			let item = self.game_buffer.swap_remove(i);
-			self.game_buffer.push(item);
+			let item = self.games_buffer.swap_remove(i);
+			self.games_buffer.push(item);
 		}
 		
 		//learn
-		nn.train(&self.game_buffer)
+		nn.train(&self.games_buffer)
 			.halt_condition(HaltCondition::Epochs(EPOCHS))
 			.log_interval(None)
 			.momentum(MOM)
@@ -158,7 +149,7 @@ impl PlayerAIValue
 			.go();
 		
 		//flush buffer
-		self.game_buffer.clear();
+		self.games_buffer.clear();
 	}
 }
 
@@ -178,7 +169,7 @@ impl Player for PlayerAIValue
 			//create new neural net, as it could not be loaded
 			let n = field.get_size();
 			self.nn = Some(NN::new(&[n, 6*n, 3*n, n, 1], Activation::PELU, Activation::Tanh)); //set size of NN layers here, be careful with activation function
-			//games_played, exploration, lr already set
+			//games_played, lr already set
 		}
 		else
 		{
@@ -197,7 +188,6 @@ impl Player for PlayerAIValue
 			self.nn = Some(NN::from_json(&nns));
 			
 			self.lr = self.get_lr();
-			self.exploration = self.get_exploration();
 		}
 		
 		self.initialized = true;
@@ -221,30 +211,19 @@ impl Player for PlayerAIValue
 		//decide which action x to take
 		let mut x:u32 = 0;
 		let mut max = f64::NEG_INFINITY;
-		if self.explore && rng.gen::<f64>() < self.exploration //random exploration if it should
-		{ //decide random
-			let mut valid = false;
-			while !valid //infinite if it is already draw! (cannot happen without bug)
+		//decide by evaluation
+		for i in 0..field.get_w()
+		{
+			let mut val = f64::NEG_INFINITY;
+			if field.play(p, i)
 			{
-				x = rng.gen::<u32>() % field.get_w();
-				valid = field.is_valid_play(x);
+				val = self.minimax(field, op, 2);
+				field.undo();
 			}
-		}
-		else
-		{ //decide by evaluation
-			for i in 0..field.get_w()
+			if max < val || !field.is_valid_play(x)
 			{
-				let mut val = f64::NEG_INFINITY;
-				if field.play(p, i)
-				{
-					val = self.minimax(field, op, 2);
-					field.undo();
-				}
-				if max < val || !field.is_valid_play(x)
-				{
-					max = val;
-					x = i;
-				}
+				max = val;
+				x = i;
 			}
 		}
 		
@@ -268,7 +247,6 @@ impl Player for PlayerAIValue
 		//parameters
 		self.games_played += 1;
 		self.lr = self.get_lr();
-		self.exploration = self.get_exploration();
 		
 		//collect data and learn if not fixed (to save memory and computation else)
 		if !self.fixed
@@ -284,7 +262,7 @@ impl Player for PlayerAIValue
 			{
 				let state = self.current_game.pop().unwrap();
 				let result = vec![temporal_factor * value];
-				self.game_buffer.push((state, result));
+				self.games_buffer.push((state, result));
 				temporal_factor *= GAMMA; //induce unsureness at the start of the game, avoid always 1 for start player
 			}
 			
