@@ -41,19 +41,31 @@ fn play_from_args()
 {
 	let args = env::args();
 	//general playing with command line arguments
-	let p1 = PlayerType::IO;
-	let p2 = PlayerType::Minimax;
-	let num = 2;
-	let player1starts = true;
+	let mut p1 = PlayerType::IO;
+	let mut p2 = PlayerType::Minimax;
+	let mut num = 2;
+	let mut player1starts = true;
 	
 	for (i, arg) in args.enumerate()
 	{
+		let param = arg.trim().to_lowercase();
 		match i
 		{
-			1 => {},
-			2 => {},
-			3 => {},
-			4 => {},
+			1 => {
+					let player = string_to_player(&param);
+					if player.is_some() { p1 = player.unwrap(); }
+				},
+			2 => {
+					let player = string_to_player(&param);
+					if player.is_some() { p2 = player.unwrap(); }
+				},
+			3 => {
+					let parsed = param.parse::<u32>();
+					if parsed.is_ok() { num = parsed.unwrap(); }
+				},
+			4 => {
+					if param == "false" { player1starts = false; }
+				},
 			_ => {}, //ignore first and all other args
 		}
 	}
@@ -96,3 +108,20 @@ fn general_play(p1:PlayerType, p2:PlayerType, num:u32, gps:u32, player1starts:bo
 	}
 }
 
+fn string_to_player(str:&str) -> Option<PlayerType>
+{
+	match str
+	{
+		"io" => Some(PlayerType::IO),
+		"random" => Some(PlayerType::Random),
+		"minimax" => Some(PlayerType::Minimax),
+		"aiq" => Some(PlayerType::AIQ),
+		"aiqfixed" => Some(PlayerType::AIQFixed),
+		"aiqplay" => Some(PlayerType::AIQPlay),
+		"aivalue" => Some(PlayerType::AIValue),
+		"aivaluefixed" => Some(PlayerType::AIValueFixed),
+		//"aiqoff" => Some(PlayerType::AIQOff),
+		//"aiqofffixed" => Some(PlayerType::AIQOffFixed),
+		_ => None,
+	}
+}
