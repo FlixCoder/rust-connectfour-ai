@@ -2,6 +2,7 @@ mod game;
 
 use game::*;
 use std::time::Instant;
+use std::env;
 
 
 #[allow(unreachable_code)]
@@ -13,13 +14,13 @@ fn main()
 		1 => general_play(PlayerType::IO, PlayerType::AIValueFixed, 2, 1, true), //test with IO
 		2 => general_play(PlayerType::Minimax, PlayerType::AIValueFixed, 100, 1, true), //test with minimax
 		3 => general_play(PlayerType::Random, PlayerType::AIValueFixed, 1000, 1, true), //test with random
-		4 => general_play(PlayerType::AIValue, PlayerType::AIValue, 1_000, 10, true), //training
+		4 => general_play(PlayerType::AIValueFixed, PlayerType::AIValue, 1_000, 10, true), //training
 		5 => { //continuous training and testing
 				println!("Training:");
 				for i in 0..10
 				{
 					println!("Training {}:", i+1);
-					general_play(PlayerType::AIValue, PlayerType::AIValue, 1_000, 10, true); //train, learn
+					general_play(PlayerType::AIValueFixed, PlayerType::AIValue, 1_000, 10, true); //train, learn
 					println!("Test {}:", i+1);
 					general_play(PlayerType::Minimax, PlayerType::AIValueFixed, 100, 1, true); //test with minimax
 				}
@@ -29,13 +30,40 @@ fn main()
 			},
 		_ => {
 				//general playing with command line arguments
+				play_from_args();
 			}
 	}
 }
 
 
 #[allow(dead_code)]
-fn general_play(p1:PlayerType, p2:PlayerType, num:u32, gps:u32, player1start:bool)
+fn play_from_args()
+{
+	let args = env::args();
+	//general playing with command line arguments
+	let p1 = PlayerType::IO;
+	let p2 = PlayerType::Minimax;
+	let num = 2;
+	let player1starts = true;
+	
+	for (i, arg) in args.enumerate()
+	{
+		match i
+		{
+			1 => {},
+			2 => {},
+			3 => {},
+			4 => {},
+			_ => {}, //ignore first and all other args
+		}
+	}
+	
+	println!("Running:");
+	general_play(p1, p2, num, 1, player1starts);
+}
+
+#[allow(dead_code)]
+fn general_play(p1:PlayerType, p2:PlayerType, num:u32, gps:u32, player1starts:bool)
 {
 	println!("Player X: {:?}", p1);
 	println!("Player O: {:?}", p2);
@@ -43,7 +71,7 @@ fn general_play(p1:PlayerType, p2:PlayerType, num:u32, gps:u32, player1start:boo
 	
 	//prepare
 	let mut game = Game::new();
-	game.set_start_player(if player1start {1} else {2});
+	game.set_start_player(if player1starts {1} else {2});
 	game.set_player1(p1);
 	game.set_player2(p2);
 	
@@ -56,7 +84,7 @@ fn general_play(p1:PlayerType, p2:PlayerType, num:u32, gps:u32, player1start:boo
 	println!("");
 	
 	//drop worse player first in case 2 learning agents play against each other and use the same file
-	if p1w >= p2w
+	if p1w > p2w
 	{
 		game.set_player2(PlayerType::None);
 		game.set_player1(PlayerType::None);
@@ -66,35 +94,5 @@ fn general_play(p1:PlayerType, p2:PlayerType, num:u32, gps:u32, player1start:boo
 		game.set_player1(PlayerType::None);
 		game.set_player2(PlayerType::None);
 	}
-}
-
-#[allow(dead_code)]
-fn aiq_play()
-{
-	general_play(PlayerType::IO, PlayerType::AIQ, 6, 1, true);
-}
-
-#[allow(dead_code)]
-fn aiq_test_io()
-{
-	general_play(PlayerType::IO, PlayerType::AIQPlay, 2, 1, true);
-}
-
-#[allow(dead_code)]
-fn aiq_test_minimax()
-{
-	general_play(PlayerType::Minimax, PlayerType::AIQFixed, 100, 1, true);
-}
-
-#[allow(dead_code)]
-fn aiq_test_random()
-{
-	general_play(PlayerType::Random, PlayerType::AIQFixed, 1000, 1, true);
-}
-
-#[allow(dead_code)]
-fn aiq_train()
-{
-	general_play(PlayerType::AIQFixed, PlayerType::AIQ, 5_000, 10, true);
 }
 
