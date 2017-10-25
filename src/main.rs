@@ -17,12 +17,12 @@ fn main()
 		4 => general_play(PlayerType::AIValueFixed, PlayerType::AIValue, 1_000, 10, true), //training
 		5 => { //continuous training and testing
 				println!("Training:");
-				for i in 0..10
+				for i in 0..100
 				{
 					println!("Training {}:", i+1);
-					general_play(PlayerType::AIValueFixed, PlayerType::AIValue, 1_000, 10, true); //train, learn
+					general_play(PlayerType::AIValueFixed, PlayerType::AIValue, 100, 10, true); //train, learn
 					println!("Test {}:", i+1);
-					general_play(PlayerType::Minimax, PlayerType::AIValueFixed, 100, 1, true); //test with minimax
+					general_play(PlayerType::Minimax, PlayerType::AIValueFixed, 2, 1, true); //test with minimax
 				}
 				println!("Testing:");
 				general_play(PlayerType::Random, PlayerType::AIValueFixed, 1000, 1, true); //test with random
