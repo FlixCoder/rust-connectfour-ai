@@ -3,9 +3,9 @@
 
 extern crate rand;
 extern crate nn;
-//extern crate rustc_serialize;
+extern crate rustc_serialize;
 
-//use self::rustc_serialize::json;
+use self::rustc_serialize::json;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::io::prelude::*;
@@ -16,7 +16,8 @@ use super::super::field::Field;
 use std::f64;
 
 const DEEPNESS:u32 = 3; //recursion limit
-const LEARN_FREQ:u32 = 50; //number of games between learning to collect data to train with
+const LEARN_FREQ:u32 = 10; //number of games between learning to collect data to train with
+const KEEP_NUM:usize = 500; //number of state value pairs to save between learning episodes
 const GAMMA:f64 = 0.9; //temporal unsureness factor
 const LR:f64 = 0.01; //neural net learning rate (deterministic -> high)
 const LR_DECAY:f64 = 0.01 / 50000f64; //NN learning rate decrease per game(s)
@@ -149,7 +150,7 @@ impl PlayerAIValue
 			.go();
 		
 		//flush buffer
-		self.games_buffer.clear();
+		self.games_buffer.truncate(KEEP_NUM); //.clear();
 	}
 }
 
@@ -177,15 +178,18 @@ impl Player for PlayerAIValue
 			let mut reader = BufReader::new(file.unwrap());
 			let mut datas = String::new();
 			let mut nns = String::new();
+			let mut exps = String::new();
 			
 			let res1 = reader.read_line(&mut datas);
 			let res2 = reader.read_line(&mut nns);
-			if res1.is_err() || res2.is_err() { return false; }
+			let res3 = reader.read_to_string(&mut exps);
+			if res1.is_err() || res2.is_err() || res3.is_err() { return false; }
 			
 			let res = datas.trim().parse::<u32>();
 			if res.is_err() { return false; }
 			self.games_played = res.unwrap();
 			self.nn = Some(NN::from_json(&nns));
+			self.games_buffer = json::decode(&exps).unwrap();
 			
 			self.lr = self.get_lr();
 		}
@@ -291,7 +295,8 @@ impl Drop for PlayerAIValue
 			
 			let res1 = writeln!(&mut writer, "{}", self.games_played);
 			let res2 = writeln!(&mut writer, "{}", self.nn.as_mut().unwrap().to_json());
-			if res1.is_err() || res2.is_err() { println!("Warning: There was an error while writing AIValue NN file!"); return; }
+			let res3 = write!(&mut writer, "{}", json::encode(&self.games_buffer).unwrap());
+			if res1.is_err() || res2.is_err() || res3.is_err() { println!("Warning: There was an error while writing AIValue NN file!"); return; }
 		}
 	}
 }
