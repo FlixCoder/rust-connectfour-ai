@@ -13,19 +13,19 @@ fn main()
 		1 => general_play(PlayerType::IO, PlayerType::AIValueFixed, 2, 1, true), //test with IO
 		2 => general_play(PlayerType::Minimax, PlayerType::AIValueFixed, 100, 1, true), //test with minimax
 		3 => general_play(PlayerType::Random, PlayerType::AIValueFixed, 1000, 1, true), //test with random
-		4 => general_play(PlayerType::AIValueFixed, PlayerType::AIValue, 1_000, 10, true), //training
+		4 => general_play(PlayerType::AIValue, PlayerType::AIValue, 1_000, 10, true), //training
 		5 => { //continuous training and testing
 				println!("Training:");
 				for i in 0..10
 				{
 					println!("Training {}:", i+1);
-					general_play(PlayerType::AIValueFixed, PlayerType::AIValue, 1_000, 10, true);
+					general_play(PlayerType::AIValue, PlayerType::AIValue, 1_000, 10, true); //train, learn
 					println!("Test {}:", i+1);
-					general_play(PlayerType::Minimax, PlayerType::AIValueFixed, 100, 1, true);
+					general_play(PlayerType::Minimax, PlayerType::AIValueFixed, 100, 1, true); //test with minimax
 				}
 				println!("Testing:");
-				general_play(PlayerType::Random, PlayerType::AIValueFixed, 1000, 1, true);
-				general_play(PlayerType::IO, PlayerType::AIValueFixed, 2, 1, true);
+				general_play(PlayerType::Random, PlayerType::AIValueFixed, 1000, 1, true); //test with random
+				general_play(PlayerType::IO, PlayerType::AIValueFixed, 2, 1, true); //test with IO
 			},
 		_ => {
 				//general playing with command line arguments

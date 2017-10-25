@@ -270,7 +270,7 @@ impl Player for PlayerAIQ
 					//.log_interval(Some(2)) //debug
 					.momentum(MOM)
 					.rate(self.lr)
-					.lambda(LAMBDA / (self.games_played as f64 + 1.0))
+					.lambda(LAMBDA / (self.games_played as f64 + 1000.0))
 					.go();
 			}
 			//save latest as experience
@@ -360,7 +360,7 @@ impl Player for PlayerAIQ
 					//.log_interval(Some(2)) //debug
 					.momentum(MOM)
 					.rate(self.lr)
-					.lambda(LAMBDA / (self.games_played as f64 + 1.0))
+					.lambda(LAMBDA / (self.games_played as f64 + 1000.0))
 					.go();
 			}
 			//save latest as experience if not draw (would cause difficulties and is not as important)

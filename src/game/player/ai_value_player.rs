@@ -16,14 +16,14 @@ use super::super::field::Field;
 use std::f64;
 
 const DEEPNESS:u32 = 3; //recursion limit
-const LEARN_FREQ:u32 = 10; //number of games between learning to collect data to train with
+const LEARN_FREQ:u32 = 50; //number of games between learning to collect data to train with
 const GAMMA:f64 = 0.9; //temporal unsureness factor
-const LR:f64 = 0.02; //neural net learning rate (deterministic -> high)
-const LR_DECAY:f64 = 0.01 / 5000f64; //NN learning rate decrease per game(s)
-const LR_MIN:f64 = 0.005; //minimum NN LR
-const LAMBDA:f64 = 0.0001; //L2 regularization parameter lambda (divide by n manually, pick very small > 0, like pick LAMBDA / n)
+const LR:f64 = 0.01; //neural net learning rate (deterministic -> high)
+const LR_DECAY:f64 = 0.01 / 50000f64; //NN learning rate decrease per game(s)
+const LR_MIN:f64 = 0.001; //minimum NN LR
+const LAMBDA:f64 = 0.001; //L2 regularization parameter lambda (divide by n manually, pick very small > 0, like pick LAMBDA / n)
 const MOM:f64 = 0.5; //neural net momentum
-const EPOCHS:u32 = 2; //NN training epochs for per data set
+const EPOCHS:u32 = 5; //NN training epochs for per data set
 
 //values for a won or lost game in minimax and heuristic (neural net outputs should be closer to zero)
 const VAL_MAX:f64 = 2.0; //f64::MAX
