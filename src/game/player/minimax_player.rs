@@ -27,8 +27,8 @@ impl PlayerMinimax
 		let op = if p == 1 {2} else {1};
 		let state = field.get_state(); //return best or worst value on win/loose (neutral on tie)
 		if state == -1 { return 0.0; }
-		else if state == p { return 10000.0 - deep as f64; }
-		else if state == op { return -10000.0 + deep as f64; }
+		else if state == p { return 10002.0 - deep as f64; }
+		else if state == op { return -10002.0 + deep as f64; }
 		else
 		{ //game running -> evaluate
 			//count 2 and 3 rows of player and enemy, add up free squares next to player stones
@@ -96,8 +96,8 @@ impl PlayerMinimax
 		if deep > DEEPNESS { return PlayerMinimax::heur(field, if deep%2 == 0 {op} else {p}, deep); } //leaf node -> return evaluated heuristic
 		let state = field.get_state(); //return early on game end
 		if state == -1 { return 0.0; }
-		else if state == p { return if deep%2 == 0 {-10000.0 + deep as f64} else {10000.0 - deep as f64}; }
-		else if state == op { return if deep%2 == 0 {10000.0 - deep as f64} else {-10000.0 + deep as f64}; }
+		else if state == p { return if deep%2 == 0 {-10002.0 + deep as f64} else {10002.0 - deep as f64}; }
+		else if state == op { return if deep%2 == 0 {10002.0 - deep as f64} else {-10002.0 + deep as f64}; }
 		
 		//else: game running -> go deeper
 		let mut heur = if deep%2 == 0 { f64::INFINITY } else { f64::NEG_INFINITY };

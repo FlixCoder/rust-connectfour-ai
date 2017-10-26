@@ -15,20 +15,20 @@ use super::Player;
 use super::super::field::Field;
 use std::f64;
 
-const DEEPNESS:u32 = 3; //recursion limit
+const DEEPNESS:u32 = 5; //recursion limit
 const LEARN_FREQ:u32 = 10; //number of games between learning to collect data to train with
 const KEEP_NUM:usize = 0; //number of state value pairs to save between learning episodes
 const GAMMA:f64 = 0.9; //temporal unsureness factor
-const LR:f64 = 0.02; //neural net learning rate (deterministic -> high)
-const LR_DECAY:f64 = 0.01 / 10000f64; //NN learning rate decrease per game(s)
+const LR:f64 = 0.01; //neural net learning rate (deterministic -> high)
+const LR_DECAY:f64 = 0.001 / 1000f64; //NN learning rate decrease per game(s)
 const LR_MIN:f64 = 0.001; //minimum NN LR
 const LAMBDA:f64 = 0.001; //L2 regularization parameter lambda (divide by n manually, pick very small > 0, like pick LAMBDA / n)
 const MOM:f64 = 0.5; //neural net momentum
-const EPOCHS:u32 = 5; //NN training epochs for per data set
+const EPOCHS:u32 = 2; //NN training epochs per data set
 
 //values for a won or lost game in minimax and heuristic (neural net outputs should be a lot closer to zero)
-const VAL_MAX:f64 = 10000.0; //f64::MAX
-const VAL_MIN:f64 = -10000.0; //f64::MIN
+const VAL_MAX:f64 = 10002.0; //f64::MAX
+const VAL_MIN:f64 = -10002.0; //f64::MIN
 //values for value to train with NN
 const VAL_WIN:f64 = 0.9; //starting player wins value for NN learning (greater than 0!)
 const VAL_DRAW:f64 = 0.0; //draw's value for NN learning (0!)

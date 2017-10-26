@@ -8,7 +8,7 @@ use std::env;
 #[allow(unreachable_code)]
 fn main()
 {
-	match 5
+	match 55
 	{
 		0 => general_play(PlayerType::IO, PlayerType::AIValue, 2, 1, true), //play against IO + learn
 		1 => general_play(PlayerType::IO, PlayerType::AIValueFixed, 2, 1, true), //test with IO
@@ -42,7 +42,7 @@ fn play_from_args()
 	let args = env::args();
 	//general playing with command line arguments
 	let mut p1 = PlayerType::IO;
-	let mut p2 = PlayerType::Minimax;
+	let mut p2 = PlayerType::AIValue;
 	let mut num = 2;
 	let mut player1starts = true;
 	
