@@ -17,7 +17,7 @@ use std::f64;
 
 const DEEPNESS:u32 = 3; //recursion limit
 const LEARN_FREQ:u32 = 10; //number of games between learning to collect data to train with
-const KEEP_NUM:usize = 500; //number of state value pairs to save between learning episodes
+const KEEP_NUM:usize = 1000; //number of state value pairs to save between learning episodes
 const GAMMA:f64 = 0.9; //temporal unsureness factor
 const LR:f64 = 0.02; //neural net learning rate (deterministic -> high)
 const LR_DECAY:f64 = 0.01 / 10000f64; //NN learning rate decrease per game(s)
