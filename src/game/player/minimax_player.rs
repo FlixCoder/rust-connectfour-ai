@@ -4,7 +4,7 @@
 use super::Player;
 use super::super::field::Field;
 use std::thread;
-use std::f32;
+use std::f64;
 
 const DEEPNESS:u32 = 5; //recursion limit
 
@@ -22,20 +22,20 @@ impl PlayerMinimax
 		Box::new(PlayerMinimax { initialized: false, pid: 0 })
 	}
 	
-	fn heur(field:&mut Field, p:i32) -> f32
+	fn heur(field:&mut Field, p:i32, deep:u32) -> f64
 	{
 		let op = if p == 1 {2} else {1};
 		let state = field.get_state(); //return best or worst value on win/loose (neutral on tie)
 		if state == -1 { return 0.0; }
-		else if state == p { return f32::MAX; }
-		else if state == op { return f32::MIN; }
+		else if state == p { return 10000.0 - deep as f64; }
+		else if state == op { return -10000.0 + deep as f64; }
 		else
 		{ //game running -> evaluate
 			//count 2 and 3 rows of player and enemy, add up free squares next to player stones
 			let mut pr2 = 0;
 			let mut pr3 = 0;
 			let mut heur = 0.0;
-			let value = 1f32; //value of stones around free space
+			let value = 1f64; //value of stones around free space
 			for y in 0..field.get_h()
 			{
 				for x in 0..field.get_w()
@@ -85,22 +85,22 @@ impl PlayerMinimax
 					}
 				}
 			}
-			heur += (2*pr2 + 5*pr3) as f32; //add up to final score (3 rows count far more than 2 rows)
+			heur += (2*pr2 + 5*pr3) as f64; //add up to final score (3 rows count far more than 2 rows)
 			return heur;
 		}
 	}
 	
-	fn minimax(field:&mut Field, p:i32, deep:u32) -> f32
+	fn minimax(field:&mut Field, p:i32, deep:u32) -> f64
 	{
 		let op = if p == 1 {2} else {1};
-		if deep > DEEPNESS { return PlayerMinimax::heur(field, if deep%2 == 0 {op} else {p}); } //leaf node -> return evaluated heuristic
+		if deep > DEEPNESS { return PlayerMinimax::heur(field, if deep%2 == 0 {op} else {p}, deep); } //leaf node -> return evaluated heuristic
 		let state = field.get_state(); //return early on game end
 		if state == -1 { return 0.0; }
-		else if state == p { return if deep%2 == 0 {f32::MIN} else {f32::MAX}; }
-		else if state == op { return if deep%2 == 0 {f32::MAX} else {f32::MIN}; }
+		else if state == p { return if deep%2 == 0 {-10000.0 + deep as f64} else {10000.0 - deep as f64}; }
+		else if state == op { return if deep%2 == 0 {10000.0 - deep as f64} else {-10000.0 + deep as f64}; }
 		
 		//else: game running -> go deeper
-		let mut heur = if deep%2 == 0 { f32::INFINITY } else { f32::NEG_INFINITY };
+		let mut heur = if deep%2 == 0 { f64::INFINITY } else { f64::NEG_INFINITY };
 		for i in 0..field.get_w()
 		{
 			if field.is_valid_play(i)
@@ -149,14 +149,14 @@ impl Player for PlayerMinimax
 			handles.push(thread::spawn(move ||
 				{
 					if pfield.play(p, i) { PlayerMinimax::minimax(&mut pfield, op, 2) }
-					else { f32::NEG_INFINITY }
+					else { f64::NEG_INFINITY }
 					//undo not needed, because it was cloned and will be dropped
 				}));
 		}
 		
 		//decide which action to take
 		let mut x:u32 = 0;
-		let mut max = f32::NEG_INFINITY;
+		let mut max = f64::NEG_INFINITY;
 		for i in 0..field.get_w()
 		{
 			let res = handles.pop().unwrap().join();

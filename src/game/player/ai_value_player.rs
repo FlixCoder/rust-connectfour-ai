@@ -17,7 +17,7 @@ use std::f64;
 
 const DEEPNESS:u32 = 3; //recursion limit
 const LEARN_FREQ:u32 = 10; //number of games between learning to collect data to train with
-const KEEP_NUM:usize = 1000; //number of state value pairs to save between learning episodes
+const KEEP_NUM:usize = 0; //number of state value pairs to save between learning episodes
 const GAMMA:f64 = 0.9; //temporal unsureness factor
 const LR:f64 = 0.02; //neural net learning rate (deterministic -> high)
 const LR_DECAY:f64 = 0.01 / 10000f64; //NN learning rate decrease per game(s)
@@ -26,9 +26,9 @@ const LAMBDA:f64 = 0.001; //L2 regularization parameter lambda (divide by n manu
 const MOM:f64 = 0.5; //neural net momentum
 const EPOCHS:u32 = 5; //NN training epochs for per data set
 
-//values for a won or lost game in minimax and heuristic (neural net outputs should be closer to zero)
-const VAL_MAX:f64 = 2.0; //f64::MAX
-const VAL_MIN:f64 = -2.0; //f64::MIN
+//values for a won or lost game in minimax and heuristic (neural net outputs should be a lot closer to zero)
+const VAL_MAX:f64 = 10000.0; //f64::MAX
+const VAL_MIN:f64 = -10000.0; //f64::MIN
 //values for value to train with NN
 const VAL_WIN:f64 = 0.9; //starting player wins value for NN learning (greater than 0!)
 const VAL_DRAW:f64 = 0.0; //draw's value for NN learning (0!)
@@ -79,13 +79,13 @@ impl PlayerAIValue
 	}
 	
 	//returns value of board position: +1.0 player wins, -1.0 other player wins, 0.0 draw or even board
-	fn heur(&self, field:&mut Field, p:i32) -> f64 //p = player. translated from start player by (value * -1) if they are not same.
+	fn heur(&self, field:&mut Field, p:i32, deep:u32) -> f64 //p = player. translated from start player by (value * -1) if they are not same.
 	{
 		let op = if p == 1 {2} else {1};
 		let state = field.get_state(); //return best or worst value on win/loose (neutral on tie)
 		if state == -1 { return 0.0; }
-		else if state == p { return VAL_MAX; }
-		else if state == op { return VAL_MIN; }
+		else if state == p { return VAL_MAX - deep as f64; }
+		else if state == op { return VAL_MIN + deep as f64; }
 		else
 		{ //game running -> evaluate
 			let nn = self.nn.as_ref().unwrap();
@@ -102,11 +102,11 @@ impl PlayerAIValue
 	fn minimax(&self, field:&mut Field, p:i32, deep:u32) -> f64
 	{
 		let op = if p == 1 {2} else {1};
-		if deep > DEEPNESS { return self.heur(field, if deep%2 == 0 {op} else {p}); } //leaf node -> return evaluated heuristic, mechanism to get heur always for same player
+		if deep > DEEPNESS { return self.heur(field, if deep%2 == 0 {op} else {p}, deep); } //leaf node -> return evaluated heuristic, mechanism to get heur always for same player
 		let state = field.get_state(); //return early on game end
 		if state == -1 { return 0.0; }
-		else if state == p { return if deep%2 == 0 {VAL_MIN} else {VAL_MAX}; }
-		else if state == op { return if deep%2 == 0 {VAL_MAX} else {VAL_MIN}; }
+		else if state == p { return if deep%2 == 0 {VAL_MIN + deep as f64} else {VAL_MAX - deep as f64}; }
+		else if state == op { return if deep%2 == 0 {VAL_MAX - deep as f64} else {VAL_MIN + deep as f64}; }
 		
 		//else: game running -> go deeper
 		let mut heur = if deep%2 == 0 { f64::INFINITY } else { f64::NEG_INFINITY };
