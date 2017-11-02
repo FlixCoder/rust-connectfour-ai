@@ -169,7 +169,7 @@ impl Player for PlayerAIValue
 		{
 			//create new neural net, as it could not be loaded
 			let n = field.get_size();
-			self.nn = Some(NN::new(&[n, 6*n, 3*n, n, 1], Activation::PELU, Activation::Tanh)); //set size of NN layers here, be careful with activation function
+			self.nn = Some(NN::new(&[n, 3*n, n, 1], Activation::PELU, Activation::Tanh)); //set size of NN layers here, be careful with activation function
 			//games_played, lr already set
 		}
 		else

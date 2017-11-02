@@ -11,15 +11,21 @@ rustc-serialize = "0.3.*"
 
 [profile.dev]
 opt-level = 3
-debug = true
 lto = true
 panic = "unwind"
+debug = true
+debug-assertions = true
+
+[profile.test]
+opt-level = 0
+lto = false
+panic = "unwind"
+debug = true
 debug-assertions = true
 
 [profile.release]
 opt-level = 3
-debug = false
 lto = true
 panic = "unwind"
+debug = false
 debug-assertions = false
-
